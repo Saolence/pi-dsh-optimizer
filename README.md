@@ -129,10 +129,15 @@ barely notice the plugin exists.
 | `tools.register` (`dev_router_*`) | `pi.registerTool` (`pi_dsh_*`) |
 | `session.events` derivation | `ctx.sessionManager` branch scan |
 
+**Persona language**: English by default; set `PI_DSH_LANG=zh` in your
+environment (e.g. in `pi-web.service` or your shell) to inject the Chinese
+persona set instead. Both languages carry the same gear semantics
+(build/fix routing, model-specific weak personas). `pi_dsh_status` shows the
+active language (`lang=en` / `lang=zh`).
+
 **Persona auto-matched per model**: Pro → spec sentence + classify instruction
 (w6c, +4.67, P24); Flash → neutral + classify + recall/anti-runaway anchors
 (w7, +5.67, P11). Nothing to configure.
-
 ---
 
 ## Why it's worth it (theory, short version)

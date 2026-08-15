@@ -54,10 +54,22 @@ test('personaFor: mode → persona', () => {
   assert.match(personaFor(MODE_WEAK, 'deepseek-v4-flash-0731'), /build or fix/);
   assert.match(personaFor(MODE_WEAK, 'deepseek-v4-pro'), /build or fix/);
 });
+test('personaFor: zh lang returns Chinese persona', () => {
+  assert.match(personaFor(MODE_SPEC, 'deepseek-v4-flash-0731', 'zh'), /软件工程师/);
+  assert.match(personaFor(MODE_REACT, 'deepseek-v4-flash-0731', 'zh'), /实际交付/);
+  assert.match(personaFor(MODE_WEAK, 'deepseek-v4-flash-0731', 'zh'), /构建或修复/);
+  assert.match(personaFor(MODE_WEAK, 'deepseek-v4-pro', 'zh'), /构建或修复/);
+});
+test('personaFor: en default unchanged, zh flash/pro differ', () => {
+  // default lang stays English (backward compatible)
+  assert.match(personaFor(MODE_WEAK, 'deepseek-v4-flash-0731'), /build or fix/);
+  assert.match(personaFor(MODE_WEAK, 'deepseek-v4-flash-0731', 'en'), /build or fix/);
+  // zh flash and pro still differ (model-specific weak personas)
+  assert.notEqual(personaFor(MODE_WEAK, 'deepseek-v4-flash', 'zh'), personaFor(MODE_WEAK, 'deepseek-v4-pro', 'zh'));
+});
 test('personaFor weak: flash vs pro differ', () => {
   assert.notEqual(personaFor(MODE_WEAK, 'deepseek-v4-flash'), personaFor(MODE_WEAK, 'deepseek-v4-pro'));
 });
-
 // ── core tools ──
 test('coreFor: spec read-first, react write-first', () => {
   assert.deepEqual(coreFor(MODE_SPEC).slice(0, 2), ['read', 'edit']);

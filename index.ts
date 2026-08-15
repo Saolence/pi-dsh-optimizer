@@ -13,7 +13,15 @@ import { Type } from "typebox";
 import {
   MODE_WEAK, bandFor, bandOf, classifyTask, clamp01, coreFor,
   extractText, isComplexTask, isFlashModel, parseMode, personaFor, testinessFor,
+  type PersonaLang,
 } from "./router-core.ts";
+
+// ── persona language: PI_DSH_LANG=zh|en (default en, backward compatible) ──
+const PERSONA_LANG_ENV = "PI_DSH_LANG";
+function personaLang(): PersonaLang {
+  const v = (process.env[PERSONA_LANG_ENV] ?? "").trim().toLowerCase();
+  return v === "zh" || v === "cn" || v === "chinese" ? "zh" : "en";
+}
 
 interface SessionState {
   override?: number | 'weak';
@@ -77,8 +85,7 @@ export default function (pi: ExtensionAPI) {
     const modelId = event.systemPromptOptions?.selectedTools
       ? undefined
       : ctx.model?.id;
-    const persona = personaFor(mode, modelId ?? ctx.model?.id);
-
+    const persona = personaFor(mode, modelId ?? ctx.model?.id, personaLang());
     // Recover mode state on a fresh process without session_start firing first.
     if (st.mode === undefined) st.mode = classifyTask(firstUserText(ctx));
 
@@ -92,8 +99,9 @@ export default function (pi: ExtensionAPI) {
       pi.setActiveTools(keep);
     }
 
-    const systemPrompt = event.systemPrompt
-      + `\n\n${persona}`;
+    // Persona goes FIRST: leading instructions get the strongest model attention
+    // (primacy effect) and form the stable cache prefix across turns.
+    const systemPrompt = `${persona}\n\n${event.systemPrompt}`;
     return { systemPrompt };
   });
 
@@ -157,10 +165,12 @@ export default function (pi: ExtensionAPI) {
       const st = getState(sessionId);
       const mode = effectiveMode(sessionId, ctx);
       const modelId = ctx.model?.id;
+      const lang = personaLang();
       const lines = [
         `mode=${fmtMode(mode)} (band=${bandFor(mode)})`,
         `model=${modelId ?? 'unknown'}`,
-        `persona=${personaFor(mode, modelId).replace(/\n/g, ' / ')}`,
+        `lang=${lang}`,
+        `persona=${personaFor(mode, modelId, lang).replace(/\n/g, ' / ')}`,
         `core=[${coreFor(mode).join(', ')}]`,
         `testiness=${testinessFor(mode)}`,
         `promoted=${st.promoted ? 'yes' : 'no'}`,
@@ -214,7 +224,7 @@ export default function (pi: ExtensionAPI) {
       const model = ctx.model;
       if (!model) return { content: [{ type: "text", text: "no active model" }], details: {} };
 
-      const persona = personaFor(parsed, model.id);
+      const persona = personaFor(parsed, model.id, personaLang());
       const maxTokens = Number(params.maxTokens || 1024);
       // Enable reasoning on the subagent call so reasoningChars is real.
       // Reuse the session's thinking level when set and supported; fall back

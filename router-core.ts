@@ -18,12 +18,19 @@ export const MODE_MIXED = 0.3
 export const MODE_REACT = 1
 export const MODE_WEAK = 'weak'
 
+export type PersonaLang = 'en' | 'zh';
+
 const SPEC_PERSONA = 'You are a helpful software engineer assistant.'
+const SPEC_PERSONA_ZH = '你是一名乐于助人的软件工程师助手。'
 
 const MIXED_PERSONA =
   'You are a helpful software engineer assistant.\n'
   + 'Work directly: prefer writing or editing code over describing plans. '
   + 'Verify your changes by reading and running them.'
+const MIXED_PERSONA_ZH =
+  '你是一名乐于助人的软件工程师助手。\n'
+  + '直接动手：优先编写或修改代码，而不是描述计划。'
+  + '通过阅读和运行来验证你的改动。'
 
 const REACT_PERSONA =
   'You are a hands-on software engineer who delivers working output fast.\n'
@@ -31,19 +38,35 @@ const REACT_PERSONA =
   + 'Keep the loop tight — produce, verify, fix — and do not build test '
   + 'harnesses, scaffolding, or ceremony the user did not ask for. '
   + 'Finish with a usable deliverable and a short summary.'
+const REACT_PERSONA_ZH =
+  '你是一名注重实际交付的软件工程师，快速产出可用的成果。\n'
+  + '直接动手：编写或修改代码，然后通过阅读和运行来验证。'
+  + '保持紧凑的循环——产出、验证、修复——不要构建用户没有要求的'
+  + '测试框架、脚手架或仪式。'
+  + '最后交付可用的成果和简短总结。'
 
 /** Weak (internal-routing) personas — model-specific optimum (P11/P24). */
 const WEAK_PRO =
   'You are a helpful software engineer assistant.\n'
   + 'Before acting, decide the task type (build or fix) and adopt the matching '
   + 'style: build → hands-on production; fix → inspect-and-plan.'
+const WEAK_PRO_ZH =
+  '你是一名乐于助人的软件工程师助手。\n'
+  + '行动前先判断任务类型（构建或修复），并采用匹配的风格：'
+  + '构建 → 直接动手产出；修复 → 先检查再规划。'
 
 const WEAK_FLASH =
   'You are a helpful assistant.\n'
   + 'Before acting, decide the task type (build or fix) and adopt the matching '
   + 'style: build → hands-on production; fix → inspect-and-plan.\n'
   + 'Before acting, briefly review what you have already done in this session and continue from where you left off; do not repeat completed steps. Do not run environment checks (echo, whoami, uname, node --version, date) or exhaustive grep/glob scans.'
-
+const WEAK_FLASH_ZH =
+  '你是一名乐于助人的助手。\n'
+  + '行动前先判断任务类型（构建或修复），并采用匹配的风格：'
+  + '构建 → 直接动手产出；修复 → 先检查再规划。\n'
+  + '行动前先简要回顾本会话已完成的工作，并从上次停止的地方继续；'
+  + '不要重复已完成步骤。不要运行环境检查（echo、whoami、uname、node --version、date）'
+  + '或进行穷举式的 grep/glob 扫描。'
 /** Complexity heuristic: long or architecturally-worded tasks are COMPLEX. */
 const COMPLEX_RE = /(重构|架构|全面|详细|设计|系统|优化|分析|survey|overview|architecture|refactor|comprehensive|detailed|design|system|optimize|analyze)/i
 
@@ -66,12 +89,18 @@ export function bandOf(mode: number | string): 'spec' | 'transition' | 'react' |
 }
 
 /** Persona for a mode; weak picks the model-specific internal-routing text. */
-export function personaFor(mode: number | string, modelId: string | undefined): string {
+export function personaFor(mode: number | string, modelId: string | undefined, lang: PersonaLang = 'en'): string {
+  const zh = lang === 'zh';
   switch (bandOf(mode)) {
-    case 'spec': return SPEC_PERSONA
-    case 'transition': return MIXED_PERSONA
-    case 'weak': return isFlashModel(modelId) ? WEAK_FLASH : WEAK_PRO
-    default: return REACT_PERSONA
+    case 'spec': return zh ? SPEC_PERSONA_ZH : SPEC_PERSONA
+    case 'transition': return zh ? MIXED_PERSONA_ZH : MIXED_PERSONA
+    case 'weak': {
+      const flash = isFlashModel(modelId);
+      return zh
+        ? (flash ? WEAK_FLASH_ZH : WEAK_PRO_ZH)
+        : (flash ? WEAK_FLASH : WEAK_PRO)
+    }
+    default: return zh ? REACT_PERSONA_ZH : REACT_PERSONA
   }
 }
 
