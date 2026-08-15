@@ -72,8 +72,9 @@ the AI into the matching gear:
    model attention, and they form a stable cache prefix across turns).
 2. **Starts narrow** — the first turn exposes only core tools
    (`read`, `write`, `edit` + `bash`), so a huge tool catalog can't distract.
-3. **Opens up after you work** — after your first real tool call, the full
-   catalog unlocks and the router steps away.
+3. **Opens up after round one** — after the first assistant turn completes
+   (whether or not a tool was called), the full catalog unlocks and the
+   router steps away.
 4. **State survives** — the gear is derived from the session, so reload and
    resume keep it. Overrides persist per session; config choices persist to
    `~/.pi/agent/pi-dsh-optimizer.json`.

@@ -139,10 +139,10 @@ function firstUserText(ctx: ExtensionContext): string {
   return '';
 }
 
-/** Has any durable tool call happened in this session? */
-function hasToolCall(ctx: ExtensionContext): boolean {
+/** Has the session completed at least one assistant turn (first round done)? */
+function hasAssistantReply(ctx: ExtensionContext): boolean {
   return ctx.sessionManager.getBranch().some(
-    (e) => e.type === 'message' && e.message.role === 'toolResult',
+    (e) => e.type === 'message' && e.message.role === 'assistant',
   );
 }
 
@@ -223,7 +223,7 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
     const sessionId = ctx.sessionManager.getSessionId();
     const st = getState(sessionId);
-    st.promoted = hasToolCall(ctx);
+    st.promoted = hasAssistantReply(ctx);
     st.mode = classifyTask(firstUserText(ctx));
   });
 
@@ -240,7 +240,7 @@ export default function (pi: ExtensionAPI) {
     // firing first (session_start only fires on reload). Without the promoted
     // restore, an already-unlocked session gets re-narrowed after a restart.
     if (st.mode === undefined) st.mode = classifyTask(firstUserText(ctx));
-    if (st.promoted === false) st.promoted = hasToolCall(ctx);
+    if (st.promoted === false) st.promoted = hasAssistantReply(ctx);
 
     // First-turn anchoring: narrow tool surface until the first durable call.
     let keep: string[] | undefined;
@@ -273,8 +273,11 @@ export default function (pi: ExtensionAPI) {
     return { systemPrompt };
   });
 
-  // ── first durable tool call → promote full catalog ───────────────────────
-  pi.on("tool_call", async (event, ctx) => {
+  // ── first round done → promote full catalog ─────────────────────────────
+  // Strategy B: unlock after the FIRST assistant turn completes (agent_end),
+  // whether or not any tool was called. The first turn still gets the narrow
+  // tool surface (path-commitment anchoring); from round two everything is open.
+  pi.on("agent_end", async (_event, ctx) => {
     const sessionId = ctx.sessionManager.getSessionId();
     const st = getState(sessionId);
     if (st.promoted) return;
