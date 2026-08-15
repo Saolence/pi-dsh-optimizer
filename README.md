@@ -79,13 +79,12 @@ the AI into the matching gear:
    resume keep it. Overrides persist per session; config choices persist to
    `~/.pi/agent/pi-dsh-optimizer.json`.
 
-### The 3 manual tools
+### The 2 manual tools
 
 | Tool | What it does | How to call |
 |---|---|---|
 | `pi_dsh_status` | see the current gear, band, persona, language, override state | no arguments |
 | `pi_dsh_mode` | shift gears by hand | `spec` / `react` / `weak` / `mixed`, a number, or `auto` to restore |
-| `pi_dsh_subagent` | run a small AI in a DIFFERENT gear | mode + task; doesn't touch this session |
 
 > Numbers are PERCENT (0-100): `100` = react, `1` = 0.01 (near spec). Easiest
 > to just pass names: `spec` / `react` / `weak` / `mixed`.

@@ -5,7 +5,7 @@
  * Mechanism mapping:
  *   - dsh `system-prompt/assemble`  → `before_agent_start` (persona) + `pi.setActiveTools` (first-turn tool surface)
  *   - dsh `session/event` inbox.append → `context` event (near-field guidance after user messages)
- *   - dsh `tools.register` → `pi.registerTool` (router_status / router_mode / router_subagent)
+ *   - dsh `tools.register` → `pi.registerTool` (router_status / router_mode)
  *   - dsh `session.events` derivation → `ctx.sessionManager` branch scan
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -425,49 +425,4 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  pi.registerTool({
-    name: "pi_dsh_subagent",
-    label: "Router Subagent",
-    description: "Run one task in a DIFFERENT reasoning mode than this session, in a fresh isolated context (own system prompt). The current session trajectory is untouched. Mode: spec (plan-first) / weak (internal routing) / react (doer) / balanced. Returns the answer text.",
-    parameters: Type.Object({
-      mode: Type.String({ description: "spec / weak / react / balanced (or 0-100). NOTE: integers are PERCENT — pass 100/react for react end; 1 means 1% = 0.01" }),
-      task: Type.String({ description: "the task to hand to the mode-isolated subagent" }),
-      maxTokens: Type.Optional(Type.Number({ description: "output cap (default 1024)" })),
-    }),
-    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-      const parsed = parseMode(params.mode);
-      if (parsed === null || parsed === 'auto') {
-        return { content: [{ type: "text", text: `invalid mode "${params.mode}"` }], details: {} };
-      }
-      const model = ctx.model;
-      if (!model) return { content: [{ type: "text", text: "no active model" }], details: {} };
-
-      const persona = personaFor(parsed, model.id, personaLang());
-      const maxTokens = Number(params.maxTokens || 1024);
-      // Enable reasoning on the subagent call so reasoningChars is real.
-      // Reuse the session's thinking level when set and supported; fall back
-      // to "high" so the mode-isolated call actually emits thinking blocks.
-      const sessionLevel = ctx.thinkingLevel;
-      const level = sessionLevel && sessionLevel !== 'off' ? sessionLevel : 'high';
-      try {
-        const assistant = await ctx.modelRegistry.complete(model, {
-          systemPrompt: persona,
-          messages: [{ role: 'user', content: [{ type: 'text', text: String(params.task) }], timestamp: Date.now() }],
-        }, { maxTokens, reasoningEffort: level });
-        const text = assistant.content?.map((c) => (c.type === 'text' ? c.text : '')).join('') ?? '';
-        const reasoningChars = (assistant.content ?? [])
-          .filter((c) => c.type === 'thinking')
-          .map((c) => (c as { thinking?: string }).thinking ?? '')
-          .join('').length;
-        const head = text.slice(0, 3000);
-        return {
-          content: [{ type: "text", text: `[mode-subagent ${bandFor(parsed)} | reasoning ${reasoningChars} chars]\n${head}${text.length > 3000 ? '\n…(truncated)' : ''}` }],
-          details: { reasoningChars, fullLength: text.length },
-        };
-      } catch (error) {
-        const msg = error && (error as Error).message ? (error as Error).message : String(error);
-        return { content: [{ type: "text", text: `subagent error: ${msg}` }], details: {}, isError: true };
-      }
-    },
-  });
 }
