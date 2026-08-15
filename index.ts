@@ -15,7 +15,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { Type } from "typebox";
 import {
   MODE_WEAK, applyIdentity, bandFor, bandOf, classifyTask, clamp01, coreFor,
-  extractText, guideFor, isFlashModel, isGuideText, narrowToolSection, parseMode, personaFor, testinessFor,
+  adaptToolNames, extractText, guideFor, isFlashModel, isGuideText, narrowToolSection, parseMode, personaFor, testinessFor,
   type PersonaLang,
 } from "./router-core.ts";
 
@@ -244,8 +244,10 @@ export default function (pi: ExtensionAPI) {
     if (!st.promoted) {
       const core = coreFor(mode);
       const shell = 'bash';
-      const narrowed = [...new Set([...core, shell])];
       const all = pi.getAllTools().map((t) => t.name);
+      // Map legacy names to equivalents in the running pi (edit → replace).
+      const adapted = adaptToolNames(core, all);
+      const narrowed = [...new Set([...adapted, shell])];
       keep = narrowed.filter((name) => all.includes(name));
       pi.setActiveTools(keep);
     }

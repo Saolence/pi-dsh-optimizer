@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   classifyTask, bandOf, bandFor, personaFor, coreFor, parseMode, applyIdentity, guideFor,
-  isComplexTask, isFlashModel, extractText, isGuideText, narrowToolSection, clamp01,
+  adaptToolNames, isComplexTask, isFlashModel, extractText, isGuideText, narrowToolSection, clamp01,
   MODE_SPEC, MODE_REACT, MODE_WEAK,
 } from './router-core.ts';
 
@@ -218,4 +218,15 @@ In addition to the tools above, you may have access to other custom tools.`;
 test('narrowToolSection: tolerant when template does not match', () => {
   const base = 'Something entirely different without a tools section.';
   assert.equal(narrowToolSection(base, ['read']), base);
+});
+test('adaptToolNames: edit → replace on pi 0.84+ (no edit tool)', () => {
+  const avail = ['read', 'write', 'replace', 'bash'];
+  assert.deepEqual(adaptToolNames(['read', 'write', 'edit'], avail), ['read', 'write', 'replace']);
+});
+test('adaptToolNames: keeps edit when the running pi still has it', () => {
+  const avail = ['read', 'write', 'edit', 'bash'];
+  assert.deepEqual(adaptToolNames(['read', 'write', 'edit'], avail), ['read', 'write', 'edit']);
+});
+test('adaptToolNames: unknown names pass through unchanged', () => {
+  assert.deepEqual(adaptToolNames(['read', 'nope'], ['read']), ['read', 'nope']);
 });

@@ -115,6 +115,18 @@ export function narrowToolSection(base: string, keep: string[]): string {
   return base.replace(TOOLS_SECTION_RE, `$1${list}$3`)
 }
 
+/**
+ * Map legacy tool names to equivalents present in the running pi:
+ * 'edit' → 'replace' (pi 0.84+ renamed the editor tool). Unknown names pass
+ * through unchanged and are filtered out later by the caller.
+ */
+export function adaptToolNames(core: string[], available: string[]): string[] {
+  const avail = new Set(available)
+  return core.map((n) =>
+    n === 'edit' && !avail.has('edit') && avail.has('replace') ? 'replace' : n
+  )
+}
+
 /** True when the routed model id is a Flash-family model. */
 export function isFlashModel(modelId: string | undefined): boolean {
   return typeof modelId === 'string' && /flash/i.test(modelId)
