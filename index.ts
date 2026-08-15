@@ -236,8 +236,11 @@ export default function (pi: ExtensionAPI) {
       ? undefined
       : ctx.model?.id;
     const persona = personaFor(mode, modelId ?? ctx.model?.id, personaLang());
-    // Recover mode state on a fresh process without session_start firing first.
+    // Recover mode + promotion state on a fresh process without session_start
+    // firing first (session_start only fires on reload). Without the promoted
+    // restore, an already-unlocked session gets re-narrowed after a restart.
     if (st.mode === undefined) st.mode = classifyTask(firstUserText(ctx));
+    if (st.promoted === false) st.promoted = hasToolCall(ctx);
 
     // First-turn anchoring: narrow tool surface until the first durable call.
     let keep: string[] | undefined;
