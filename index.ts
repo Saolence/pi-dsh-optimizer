@@ -15,7 +15,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { Type } from "typebox";
 import {
   MODE_WEAK, applyIdentity, bandFor, bandOf, classifyTask, clamp01, coreFor,
-  extractText, guideFor, isFlashModel, parseMode, personaFor, testinessFor,
+  extractText, guideFor, isFlashModel, isGuideText, parseMode, personaFor, testinessFor,
   type PersonaLang,
 } from "./router-core.ts";
 
@@ -282,15 +282,23 @@ export default function (pi: ExtensionAPI) {
     const messages = event.messages;
     if (!Array.isArray(messages) || messages.length === 0) return;
 
-    // Find the last real user text message; insert guidance right after it.
+    // Find the last REAL user text message (skip any previously injected
+    // guides — they are also role:'user' — to stay idempotent across the
+    // multiple context events a single turn can fire).
     let lastUserIdx = -1;
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i] as { role?: string; content?: unknown };
       if (m.role !== 'user') continue;
       const text = extractText(m.content);
-      if (text.trim()) { lastUserIdx = i; break; }
+      if (!text.trim()) continue;
+      if (isGuideText(text)) continue; // previously injected guide
+      lastUserIdx = i; break;
     }
     if (lastUserIdx < 0) return;
+    // Idempotency: a guide right after the last real user message means this
+    // turn already injected — do not stack another one.
+    const after = messages[lastUserIdx + 1] as { role?: string; content?: unknown } | undefined;
+    if (after && after.role === 'user' && isGuideText(extractText(after.content))) return;
     const guide = guideFor(extractText((messages[lastUserIdx] as { content?: unknown }).content ?? ''), personaLang());
 
     const next = [...messages];

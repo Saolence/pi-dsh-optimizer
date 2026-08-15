@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   classifyTask, bandOf, bandFor, personaFor, coreFor, parseMode, applyIdentity, guideFor,
-  isComplexTask, isFlashModel, extractText, clamp01,
+  isComplexTask, isFlashModel, extractText, isGuideText, clamp01,
   MODE_SPEC, MODE_REACT, MODE_WEAK,
 } from './router-core.ts';
 
@@ -164,4 +164,23 @@ test('extractText', () => {
   assert.equal(extractText({ content: ['a', { text: 'b' }] }), 'a b');
   assert.equal(extractText({ content: [] }), '');
   assert.equal(extractText(null), '');
+});
+test('extractText: tolerates every pi content shape (regression)', () => {
+  // bare TextContent[] array — what index.ts passes as m.content
+  assert.equal(extractText([{ type: 'text', text: '你好' }]), '你好');
+  // bare string — UserMessage.content may also be a plain string
+  assert.equal(extractText('你好'), '你好');
+  // object wrapping a string content
+  assert.equal(extractText({ content: '你好' }), '你好');
+  // object wrapping an array with mixed string + object parts
+  assert.equal(extractText({ content: ['a', { text: 'b' }] }), 'a b');
+  // non-content junk
+  assert.equal(extractText({ foo: 1 }), '');
+  assert.equal(extractText(42), '');
+});
+test('isGuideText: recognizes injected guides, rejects real user text', () => {
+  assert.ok(isGuideText('路由器：现在判断这个任务是构建还是修复'));
+  assert.ok(isGuideText('Router: classify this task'));
+  assert.ok(!isGuideText('你好，帮我看看这段代码'));
+  assert.ok(!isGuideText(''));
 });

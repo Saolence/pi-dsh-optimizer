@@ -167,13 +167,33 @@ export function classifyTask(text: string): number | 'weak' {
   return 'weak'
 }
 
-export function extractText(data: unknown): string {
-  if (!data || typeof data !== 'object') return ''
-  const content = (data as { content?: unknown }).content
-  if (!Array.isArray(content)) return ''
-  return content
+function textOfParts(parts: unknown[]): string {
+  return parts
     .map((c) => (typeof c === 'string' ? c : ((c as { text?: string })?.text ?? '')))
     .join(' ')
+}
+
+/**
+ * Extract plain text from a message-content payload, tolerating every shape pi
+ * hands to extension events: a bare string, a TextContent[] array, or an object
+ * wrapping either (`{ content: ... }`). Returns '' for anything else.
+ */
+export function extractText(data: unknown): string {
+  if (typeof data === 'string') return data
+  if (Array.isArray(data)) return textOfParts(data)
+  if (!data || typeof data !== 'object') return ''
+  const content = (data as { content?: unknown }).content
+  if (typeof content === 'string') return content
+  if (Array.isArray(content)) return textOfParts(content)
+  return ''
+}
+
+const GUIDE_PREFIXES = ['路由器：', 'Router:']
+
+/** True when a text is one of the injected routing guides (idempotency guard). */
+export function isGuideText(text: string): boolean {
+  const t = (text ?? '').trim()
+  return GUIDE_PREFIXES.some((p) => t.startsWith(p))
 }
 
 /**
