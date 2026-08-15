@@ -1,0 +1,38 @@
+{
+  "name": "pi-dsh-optimizer",
+  "version": "0.1.0",
+  "description": "The auto-shifter for pi: task-aware reasoning-mode router. Ported from dsh-router-standard — classifies each task and routes the session to spec (planner) / react (doer) / weak (self-route), with persona + first-turn tool injection and three tuning tools.",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "extension",
+    "router",
+    "reasoning-mode",
+    "dsh-router-standard",
+    "spec",
+    "react",
+    "weak"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "index.ts",
+    "router-core.ts",
+    "README.md",
+    "README.zh-CN.md",
+    "tsconfig.json"
+  ],
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "scripts": {
+    "test": "node --test tests.mjs",
+    "typecheck": "tsc --noEmit"
+  }
+}
