@@ -1,0 +1,156 @@
+/**
+ * router-core: reasoning-mode routing logic (ported from dsh-router-standard).
+ *
+ * BEHAVIORAL REALITY (measured on deepseek-v4): model behavior along the
+ * react↔spec axis collapses into THREE stable regions, not a continuum —
+ * spec [0, 0.15], a transition band [0.2, 0.45] (unstable mix, avoid), and
+ * react [0.5, 1.0]. The numeric interface maps onto three behavior bands.
+ *
+ * FOURTH MODE — weak (internal routing): P8/P11 show a weak-persona domain
+ * where the model routes itself from the task. The optimal weak persona is
+ * model-specific (P11, n=3):
+ *   - pro:   spec sentence + few-shot routing instruction (w6, +5.00)
+ *   - flash: neutral + explicit "classify then act" instruction (w7, +5.67)
+ */
+
+export const MODE_SPEC = 0
+export const MODE_MIXED = 0.3
+export const MODE_REACT = 1
+export const MODE_WEAK = 'weak'
+
+const SPEC_PERSONA = 'You are a helpful software engineer assistant.'
+
+const MIXED_PERSONA =
+  'You are a helpful software engineer assistant.\n'
+  + 'Work directly: prefer writing or editing code over describing plans. '
+  + 'Verify your changes by reading and running them.'
+
+const REACT_PERSONA =
+  'You are a hands-on software engineer who delivers working output fast.\n'
+  + 'Work directly: write or edit code, then verify it by reading and running. '
+  + 'Keep the loop tight — produce, verify, fix — and do not build test '
+  + 'harnesses, scaffolding, or ceremony the user did not ask for. '
+  + 'Finish with a usable deliverable and a short summary.'
+
+/** Weak (internal-routing) personas — model-specific optimum (P11/P24). */
+const WEAK_PRO =
+  'You are a helpful software engineer assistant.\n'
+  + 'Before acting, decide the task type (build or fix) and adopt the matching '
+  + 'style: build → hands-on production; fix → inspect-and-plan.'
+
+const WEAK_FLASH =
+  'You are a helpful assistant.\n'
+  + 'Before acting, decide the task type (build or fix) and adopt the matching '
+  + 'style: build → hands-on production; fix → inspect-and-plan.\n'
+  + 'Before acting, briefly review what you have already done in this session and continue from where you left off; do not repeat completed steps. Do not run environment checks (echo, whoami, uname, node --version, date) or exhaustive grep/glob scans.'
+
+/** Complexity heuristic: long or architecturally-worded tasks are COMPLEX. */
+const COMPLEX_RE = /(重构|架构|全面|详细|设计|系统|优化|分析|survey|overview|architecture|refactor|comprehensive|detailed|design|system|optimize|analyze)/i
+
+export function isComplexTask(text: string): boolean {
+  return typeof text === 'string' && (text.length > 120 || COMPLEX_RE.test(text))
+}
+
+/** True when the routed model id is a Flash-family model. */
+export function isFlashModel(modelId: string | undefined): boolean {
+  return typeof modelId === 'string' && /flash/i.test(modelId)
+}
+
+/** Quantize a mode to one of the four measured behavior bands. */
+export function bandOf(mode: number | string): 'spec' | 'transition' | 'react' | 'weak' {
+  if (mode === MODE_WEAK) return 'weak'
+  const m = clamp01(mode)
+  if (m < 0.2) return 'spec'
+  if (m < 0.5) return 'transition'
+  return 'react'
+}
+
+/** Persona for a mode; weak picks the model-specific internal-routing text. */
+export function personaFor(mode: number | string, modelId: string | undefined): string {
+  switch (bandOf(mode)) {
+    case 'spec': return SPEC_PERSONA
+    case 'transition': return MIXED_PERSONA
+    case 'weak': return isFlashModel(modelId) ? WEAK_FLASH : WEAK_PRO
+    default: return REACT_PERSONA
+  }
+}
+
+/** First-turn core tools (pi tool names; bash added by the plugin). */
+export function coreFor(mode: number | string): string[] {
+  switch (bandOf(mode)) {
+    case 'spec': return ['read', 'edit', 'find', 'grep'] // read-first
+    case 'transition': return ['read', 'edit', 'write', 'find', 'grep'] // union
+    default: return ['read', 'write', 'edit'] // write-first
+  }
+}
+
+/** Human-readable band name for a mode value. */
+export function bandFor(mode: number | string): string {
+  const b = bandOf(mode)
+  return b === 'transition' ? 'mixed' : b
+}
+
+/** Test-suppression strength for a mode (informational). */
+export function testinessFor(mode: number | string): string {
+  switch (bandOf(mode)) {
+    case 'react': return 'suppressed'
+    case 'spec': return 'normal'
+    default: return 'light'
+  }
+}
+
+const REACT_RE = /(开发|创建|写一个|生成|从零|做一个|游戏|网页|网站|构建|新项目|搭建|实现|做出|上线|落地|脚本|工具|应用|build|create|develop|generate|implement|make a|new project)/gi
+const SPEC_RE = /(修复|修一下|调试|重构|维护|排查|报错|出错|崩溃|优化|审查|review|fix|debug|refactor|maintain|repair|broken|break|为什么|异常|故障|迁移|升级|兼容)/gi
+
+function countHits(regex: RegExp, text: string): number {
+  return [...text.matchAll(regex)].length
+}
+
+/**
+ * Classify a task text into a mode. Clear keyword evidence picks a stable
+ * band (1 react / 0 spec); AMBIGUOUS or unmatched text returns 'weak'.
+ */
+export function classifyTask(text: string): number | 'weak' {
+  if (!text) return 'weak'
+  const react = countHits(REACT_RE, text)
+  const spec = countHits(SPEC_RE, text)
+  if (react > spec) return 1
+  if (spec > react) return 0
+  return 'weak'
+}
+
+export function extractText(data: unknown): string {
+  if (!data || typeof data !== 'object') return ''
+  const content = (data as { content?: unknown }).content
+  if (!Array.isArray(content)) return ''
+  return content
+    .map((c) => (typeof c === 'string' ? c : ((c as { text?: string })?.text ?? '')))
+    .join(' ')
+}
+
+export function clamp01(v: unknown): number {
+  return Math.min(1, Math.max(0, Number(v) || 0))
+}
+
+/**
+ * Parse a user/agent-supplied mode token: number 0-100, 0.0-1.0, or a band name.
+ *
+ * Integer tokens are interpreted as PERCENT (0-100) — `parseMode("100")` = 1,
+ * `parseMode("1")` = 0.01. To request the react end directly, pass `"react"`,
+ * `"1.0"`, or `"100"`. Empty/whitespace tokens and non-numeric garbage return
+ * null (never silently fall back to spec).
+ */
+export function parseMode(token: unknown): number | 'weak' | 'auto' | null {
+  if (token === undefined || token === null) return null
+  const t = String(token).trim().toLowerCase()
+  if (!t) return null // 空串/纯空白 → invalid, not spec
+  if (t === 'auto') return 'auto'
+  if (t === 'weak' || t === 'router') return 'weak'
+  if (t === 'spec' || t === 'spec-lean') return 0
+  if (t === 'balanced' || t === 'mixed') return 0.3
+  if (t === 'react' || t === 'react-lean') return 1
+  const n = Number(t)
+  if (!Number.isFinite(n)) return null
+  if (t.includes('.')) return clamp01(n)
+  return clamp01(n / 100)
+}
