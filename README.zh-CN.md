@@ -91,6 +91,7 @@ pi_dsh_status
 |---|---|
 | `/pi-dsh-lang` | 查看 / 切换注入人格的语言（`zh` / `en`），持久化 |
 | `/pi-dsh-identity` | 查看 / 控制 pi 官方身份句（`keep` / `remove` / `set <文本>`），持久化 |
+| `/pi-dsh-guide` | 查看 / 开关 weak 档的近场路由引导（`on` / `off`），持久化 |
 
 ---
 
@@ -251,6 +252,7 @@ pi 默认模板以 "You are an expert coding assistant operating inside pi..."
 | 人格语言 | `/pi-dsh-lang`、配置文件或 `PI_DSH_LANG` | `zh` / `en` | `en` |
 | 身份句处理 | `/pi-dsh-identity`、配置文件或 `PI_DSH_IDENTITY` | `keep` / `remove` / `replace` | `remove` |
 | 会话模式覆盖 | `pi_dsh_mode`（按会话，不持久化） | `spec` / `react` / `weak` / `mixed`、0-100、`auto` | 自动分类 |
+| 近场引导 | `/pi-dsh-guide`、配置文件 | `on` / `off` | `on` |
 
 配置文件位置：`~/.pi/agent/pi-dsh-optimizer.json`：
 

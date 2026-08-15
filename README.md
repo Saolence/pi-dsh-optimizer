@@ -96,6 +96,7 @@ the AI into the matching gear:
 |---|---|
 | `/pi-dsh-lang` | show / switch the injected persona language (`zh` / `en`), persisted |
 | `/pi-dsh-identity` | show / control the official pi identity sentence (`keep` / `remove` / `set <text>`), persisted |
+| `/pi-dsh-guide` | show / switch the weak-mode near-field routing guide (`on` / `off`), persisted |
 
 ---
 
@@ -266,6 +267,7 @@ weak personas). `pi_dsh_status` shows the active language (`lang=en` / `lang=zh`
 | Persona language | `/pi-dsh-lang`, config file, or `PI_DSH_LANG` | `zh` / `en` | `en` |
 | Identity handling | `/pi-dsh-identity`, config file, or `PI_DSH_IDENTITY` | `keep` / `remove` / `replace` | `remove` |
 | Session mode override | `pi_dsh_mode` (per-session, not persisted) | `spec` / `react` / `weak` / `mixed`, 0-100, `auto` | auto-classified |
+| Near-field guide | `/pi-dsh-guide`, config file | `on` / `off` | `on` |
 
 Config file location: `~/.pi/agent/pi-dsh-optimizer.json`:
 

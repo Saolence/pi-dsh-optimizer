@@ -28,7 +28,7 @@ const DEFAULT_LANG: PersonaLang = "en";
 const DEFAULT_IDENTITY: IdentityMode = "remove";
 
 export type IdentityMode = "keep" | "remove" | "replace";
-type PluginConfig = { lang?: string; identity?: string; identityText?: string };
+type PluginConfig = { lang?: string; identity?: string; identityText?: string; guide?: string };
 
 function configPath(): string {
   return join(homedir(), ".pi", "agent", LANG_CONFIG_FILE);
@@ -49,10 +49,18 @@ function parseIdentity(v: string | undefined): IdentityMode | undefined {
   return undefined;
 }
 
+function parseGuide(v: string | undefined): boolean | undefined {
+  const t = (v ?? "").trim().toLowerCase();
+  if (t === "on" || t === "true" || t === "1" || t === "yes") return true;
+  if (t === "off" || t === "false" || t === "0" || t === "no") return false;
+  return undefined;
+}
+
 let configCache: PluginConfig | undefined; // parsed config file (process-lifetime)
 let cachedLang: PersonaLang | undefined;
 let cachedIdentity: IdentityMode | undefined;
 let cachedIdentityText: string | undefined;
+let cachedGuide: boolean | undefined;
 
 /** Load the persisted config file (once per process). */
 function loadConfig(): PluginConfig | undefined {
@@ -79,6 +87,7 @@ function saveConfigField(field: keyof PluginConfig, value: string | undefined): 
     if (field === "lang") { cachedLang = parseLang(value); }
     if (field === "identity") { cachedIdentity = parseIdentity(value); }
     if (field === "identityText") { cachedIdentityText = value; }
+    if (field === "guide") { cachedGuide = parseGuide(value); }
   } catch (error) {
     console.error(`[pi-dsh-optimizer] failed to persist config: ${String(error)}`);
   }
@@ -107,6 +116,14 @@ function identityText(): string | undefined {
   const text = loadConfig()?.identityText?.trim();
   cachedIdentityText = text || undefined;
   return cachedIdentityText;
+}
+
+/** Effective near-field guide switch: config file only, default ON. */
+function guideEnabled(): boolean {
+  if (cachedGuide !== undefined) return cachedGuide;
+  const fromConfig = parseGuide(loadConfig()?.guide);
+  cachedGuide = fromConfig ?? true;
+  return cachedGuide;
 }
 
 interface SessionState {
@@ -219,6 +236,32 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
+  // ── slash command: /pi-dsh-guide [on|off] — near-field guide switch ──────
+  pi.registerCommand("pi-dsh-guide", {
+    description: "Turn the weak-mode near-field routing guide on/off. Persisted — survives restarts. Usage: /pi-dsh-guide on | /pi-dsh-guide off | /pi-dsh-guide (show current).",
+    handler: async (args, ctx) => {
+      const arg = String(args ?? "").trim();
+      const target = arg ? parseGuide(arg) : undefined;
+      const current = guideEnabled();
+      if (arg && target === undefined) {
+        ctx.ui?.notify?.(`pi-dsh-guide: invalid value "${arg}" — use on or off (current: ${current ? "on" : "off"})`, "warning");
+        return;
+      }
+      if (arg && target !== undefined) {
+        saveConfigField("guide", target ? "on" : "off");
+        ctx.ui?.notify?.(
+          `pi-dsh-guide: near-field guide ${target ? "enabled" : "disabled"} (persisted to ${configPath()}); next request applies it.`,
+          "info",
+        );
+        return;
+      }
+      ctx.ui?.notify?.(
+        `pi-dsh-guide: current guide = ${current ? "on" : "off"} (persisted config: ${loadConfig()?.guide ?? "none"}). Use /pi-dsh-guide on | off to switch permanently.`,
+        "info",
+      );
+    },
+  });
+
   // ── session lifecycle: rebuild per-session state ─────────────────────────
   pi.on("session_start", async (_event, ctx) => {
     const sessionId = ctx.sessionManager.getSessionId();
@@ -292,6 +335,7 @@ export default function (pi: ExtensionAPI) {
     const sessionId = ctx.sessionManager.getSessionId();
     const mode = effectiveMode(sessionId, ctx);
     if (bandOf(mode) !== 'weak') return; // strong modes need no guidance
+    if (!guideEnabled()) return;         // guide switch off
     const messages = event.messages;
     if (!Array.isArray(messages) || messages.length === 0) return;
 
@@ -348,6 +392,7 @@ export default function (pi: ExtensionAPI) {
         `testiness=${testinessFor(mode)}`,
         `promoted=${st.promoted ? 'yes' : 'no'}`,
         `override=${st.override !== undefined ? 'yes' : 'no'}`,
+        `guide=${guideEnabled() ? 'on' : 'off'}`,
       ];
       return {
         content: [{ type: "text", text: lines.join('\n') }],
