@@ -62,9 +62,38 @@ V4 Flash is threshold-like (0–0.5 all spec side, jumps at 0.75+). The numeric
 transition band is never selected automatically.
 
 ## Why: dual-attractor RL policy
-
 Evidence across projects (see the upstream `docs/paper.md` and
 `docs/experiments.md`):
+
+### Same model, different modes — measured here
+
+The effect is not theoretical. Running the SAME model (`deepseek-v4-flash-0731`)
+on the SAME task in all four modes produces visibly different behavior:
+
+**Simple task (fix a Python dedupe bug) — all four got it right, differently:**
+
+| mode | opening move | flavor |
+|---|---|---|
+| spec | analysis first ("the bug is…") | most thorough explanation |
+| react | fix first, then explain | code-first |
+| mixed | one-line diagnosis, then fix | in-between |
+| weak | conclusion first ("classic dedupe bug") | most complete workflow walkthrough |
+
+**Complex task (review a full-stack approval system's architecture):**
+the differences amplified:
+
+| mode | approach | standout finding |
+|---|---|---|
+| spec | deepest engineering review | soft-delete + non-unique approval_no → audit-trail hazard |
+| react | pragmatic, actionable, ends with a prioritized summary | state-machine reject-boundary gaps |
+| mixed | broadest (7 risks), but ran long | single-worker availability + missing optimistic lock on non-status fields |
+| weak | consultant-style, compliance lens | plaintext data (data-security law), un-HMAC'd logs, no business-rule engine |
+
+All four independently converged on the same top-3 core risks (default
+SECRET_KEY + open CORS, SQLite concurrency, fragile hand-rolled migrations) —
+the difference is *how* each mode frames and prioritizes them.
+
+Then the upstream evidence:
 
 - The **same model** reaches top-band scores under spec conditions on a
   maintenance benchmark (Project2: minimal 99/96, anchored 98/99) and under
@@ -79,7 +108,6 @@ Evidence across projects (see the upstream `docs/paper.md` and
   persona** + few-shot routing instruction (lean, not flip; discrimination
   +2.3..+3.3). **Mode selection must come from outside.** This extension is
   the automated version of that external routing.
-
 ## How it maps to pi
 
 | dsh-router-standard | pi-dsh-optimizer |
