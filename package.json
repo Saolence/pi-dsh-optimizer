@@ -1,6 +1,6 @@
 {
   "name": "pi-dsh-optimizer",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "The auto-shifter for pi: task-aware reasoning-mode router. Ported from dsh-router-standard — classifies each task and routes the session to spec (planner) / react (doer) / weak (self-route), with persona + first-turn tool injection and three tuning tools.",
   "keywords": [
     "pi-package",
