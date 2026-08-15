@@ -132,6 +132,19 @@ SQLite 并发、手工迁移）——区别只在**怎么表述、怎么排序**
 两种语言承载完全相同的档位语义（build/fix 路由、按模型区分的 weak 人格）。
 `pi_dsh_status` 会显示当前语言（`lang=en` / `lang=zh`）。
 
+**官方身份句处理**：pi 默认模板以 "You are an expert coding assistant operating
+inside pi..." 开头。路由器可以屏蔽或替换它（默认屏蔽——你的 persona 已经
+定义了"你是谁"）：
+
+```
+/pi-dsh-identity               # 查看当前模式
+/pi-dsh-identity remove        # 屏蔽官方身份句（默认）
+/pi-dsh-identity keep          # 保留官方身份句
+/pi-dsh-identity set <文本>     # 替换为你自己的身份句
+```
+
+同样持久化到配置文件（重启后依然生效）。
+
 **按模型自动匹配人格**：Pro 用 spec 句 + 分类指令（w6c, +4.67, P24）；
 Flash 用中性 + 分类 + 回顾/反跑题锚（w7, +5.67, P11）。你不需要配置。
 ---

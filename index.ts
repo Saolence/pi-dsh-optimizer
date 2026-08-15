@@ -14,18 +14,23 @@ import { dirname, join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import {
-  MODE_WEAK, bandFor, bandOf, classifyTask, clamp01, coreFor,
+  MODE_WEAK, applyIdentity, bandFor, bandOf, classifyTask, clamp01, coreFor,
   extractText, isComplexTask, isFlashModel, parseMode, personaFor, testinessFor,
   type PersonaLang,
 } from "./router-core.ts";
 
-// ── persona language: persistent config > PI_DSH_LANG env > default en ──
-// `/pi-dsh-lang zh|en` writes the config file so the choice survives restarts.
+// ── persistent config: persona lang + official-identity handling ─────────
+// `/pi-dsh-lang` and `/pi-dsh-identity` write ~/.pi/agent/pi-dsh-optimizer.json
+// so choices survive restarts. Precedence: config file > env > defaults.
 const PERSONA_LANG_ENV = "PI_DSH_LANG";
 const LANG_CONFIG_FILE = "pi-dsh-optimizer.json";
 const DEFAULT_LANG: PersonaLang = "en";
+const DEFAULT_IDENTITY: IdentityMode = "remove";
 
-function langConfigPath(): string {
+export type IdentityMode = "keep" | "remove" | "replace";
+type PluginConfig = { lang?: string; identity?: string; identityText?: string };
+
+function configPath(): string {
   return join(homedir(), ".pi", "agent", LANG_CONFIG_FILE);
 }
 
@@ -36,41 +41,72 @@ function parseLang(v: string | undefined): PersonaLang | undefined {
   return undefined;
 }
 
-let cachedLang: PersonaLang | undefined; // process-lifetime cache (command updates it)
-let configLang: PersonaLang | undefined;
-
-/** Load persisted lang from the config file (called once at startup). */
-function loadConfigLang(): PersonaLang | undefined {
-  if (configLang !== undefined) return configLang;
-  try {
-    const raw = readFileSync(langConfigPath(), "utf-8");
-    const parsed = JSON.parse(raw) as { lang?: string };
-    configLang = parseLang(parsed?.lang);
-  } catch {
-    configLang = undefined; // missing or corrupt file → fall through to env/default
-  }
-  return configLang;
+function parseIdentity(v: string | undefined): IdentityMode | undefined {
+  const t = (v ?? "").trim().toLowerCase();
+  if (t === "keep") return "keep";
+  if (t === "remove") return "remove";
+  if (t === "replace") return "replace";
+  return undefined;
 }
 
-/** Persist lang to the config file; survives restarts. */
-function saveConfigLang(lang: PersonaLang): void {
+let configCache: PluginConfig | undefined; // parsed config file (process-lifetime)
+let cachedLang: PersonaLang | undefined;
+let cachedIdentity: IdentityMode | undefined;
+let cachedIdentityText: string | undefined;
+
+/** Load the persisted config file (once per process). */
+function loadConfig(): PluginConfig | undefined {
+  if (configCache !== undefined) return configCache;
   try {
-    mkdirSync(dirname(langConfigPath()), { recursive: true });
-    writeFileSync(langConfigPath(), JSON.stringify({ lang }, null, 2) + "\n", "utf-8");
-    configLang = lang;
-    cachedLang = lang;
+    const raw = readFileSync(configPath(), "utf-8");
+    configCache = JSON.parse(raw) as PluginConfig;
+  } catch {
+    configCache = undefined; // missing or corrupt file → fall through to env/default
+  }
+  return configCache;
+}
+
+/** Persist one field to the config file; survives restarts. */
+function saveConfigField(field: keyof PluginConfig, value: string | undefined): void {
+  try {
+    const current = loadConfig() ?? {};
+    const next: PluginConfig = { ...current };
+    if (value === undefined) delete next[field];
+    else next[field] = value;
+    mkdirSync(dirname(configPath()), { recursive: true });
+    writeFileSync(configPath(), JSON.stringify(next, null, 2) + "\n", "utf-8");
+    configCache = next;
+    if (field === "lang") { cachedLang = parseLang(value); }
+    if (field === "identity") { cachedIdentity = parseIdentity(value); }
+    if (field === "identityText") { cachedIdentityText = value; }
   } catch (error) {
-    console.error(`[pi-dsh-optimizer] failed to persist lang config: ${String(error)}`);
+    console.error(`[pi-dsh-optimizer] failed to persist config: ${String(error)}`);
   }
 }
 
 /** Effective persona language: config file wins, then env, then default. */
 function personaLang(): PersonaLang {
   if (cachedLang !== undefined) return cachedLang;
-  const fromConfig = loadConfigLang();
+  const fromConfig = parseLang(loadConfig()?.lang);
   if (fromConfig !== undefined) return fromConfig;
-  const fromEnv = parseLang(process.env[PERSONA_LANG_ENV]);
-  return fromEnv ?? DEFAULT_LANG;
+  return parseLang(process.env[PERSONA_LANG_ENV]) ?? DEFAULT_LANG;
+}
+
+/** Effective identity handling: config file wins, then env, then default. */
+function identityMode(): IdentityMode {
+  if (cachedIdentity !== undefined) return cachedIdentity;
+  const fromConfig = parseIdentity(loadConfig()?.identity);
+  if (fromConfig !== undefined) return fromConfig;
+  const fromEnv = parseIdentity(process.env.PI_DSH_IDENTITY);
+  return fromEnv ?? DEFAULT_IDENTITY;
+}
+
+/** Custom identity text for replace mode (from config only). */
+function identityText(): string | undefined {
+  if (cachedIdentityText !== undefined) return cachedIdentityText;
+  const text = loadConfig()?.identityText?.trim();
+  cachedIdentityText = text || undefined;
+  return cachedIdentityText;
 }
 
 interface SessionState {
@@ -131,15 +167,53 @@ export default function (pi: ExtensionAPI) {
         return;
       }
       if (arg && target !== undefined) {
-        saveConfigLang(target);
+        saveConfigField("lang", target);
         ctx.ui?.notify?.(
-          `pi-dsh-lang: persona language switched to ${target} (persisted to ${langConfigPath()}); next request applies it.`,
+          `pi-dsh-lang: persona language switched to ${target} (persisted to ${configPath()}); next request applies it.`,
           "info",
         );
         return;
       }
       ctx.ui?.notify?.(
-        `pi-dsh-lang: current persona language = ${current} (persisted config: ${loadConfigLang() ?? "none"}). Use /pi-dsh-lang zh or /pi-dsh-lang en to switch permanently.`,
+        `pi-dsh-lang: current persona language = ${current} (persisted config: ${loadConfig()?.lang ?? "none"}). Use /pi-dsh-lang zh or /pi-dsh-lang en to switch permanently.`,
+        "info",
+      );
+    },
+  });
+
+  // ── slash command: /pi-dsh-identity [keep|remove|set <text>] ─────────────
+  pi.registerCommand("pi-dsh-identity", {
+    description: "Control the official pi identity sentence (\"You are an expert coding assistant...\"): keep / remove / replace with custom text. Persisted — survives restarts. Usage: /pi-dsh-identity keep | /pi-dsh-identity remove | /pi-dsh-identity set <text> | /pi-dsh-identity (show current).",
+    handler: async (args, ctx) => {
+      const arg = String(args ?? "").trim();
+      const current = identityMode();
+      if (!arg) {
+        ctx.ui?.notify?.(
+          `pi-dsh-identity: current mode = ${current}${identityText() ? ` (custom text: "${identityText()}")` : ""}. Use /pi-dsh-identity keep | remove | set <text> to change permanently.`,
+          "info",
+        );
+        return;
+      }
+      const [verb, ...rest] = arg.split(/\s+/);
+      const restText = rest.join(" ").trim();
+      if (verb === "set") {
+        if (!restText) {
+          ctx.ui?.notify?.("pi-dsh-identity: set requires text, e.g. /pi-dsh-identity set You are my assistant.", "warning");
+          return;
+        }
+        saveConfigField("identity", "replace");
+        saveConfigField("identityText", restText);
+        ctx.ui?.notify?.(`pi-dsh-identity: official identity replaced with "${restText}" (persisted).`, "info");
+        return;
+      }
+      const parsed = parseIdentity(verb);
+      if (parsed === undefined) {
+        ctx.ui?.notify?.(`pi-dsh-identity: invalid value "${verb}" — use keep | remove | set <text> (current: ${current})`, "warning");
+        return;
+      }
+      saveConfigField("identity", parsed);
+      ctx.ui?.notify?.(
+        `pi-dsh-identity: official identity ${parsed === "keep" ? "kept" : parsed === "remove" ? "removed" : "replaced"} (persisted); next request applies it.`,
         "info",
       );
     },
@@ -177,7 +251,15 @@ export default function (pi: ExtensionAPI) {
 
     // Persona goes FIRST: leading instructions get the strongest model attention
     // (primacy effect) and form the stable cache prefix across turns.
-    const systemPrompt = `${persona}\n\n${event.systemPrompt}`;
+    let base = event.systemPrompt;
+    // Official pi identity handling: keep | remove | replace with custom text.
+    // The identity sentence is the fixed opening of pi's default template.
+    const idMode = identityMode();
+    if (idMode !== "keep") {
+      const custom = idMode === "replace" ? identityText() : undefined;
+      base = applyIdentity(base, custom);
+    }
+    const systemPrompt = `${persona}\n\n${base}`;
     return { systemPrompt };
   });
 

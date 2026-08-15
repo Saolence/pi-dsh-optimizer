@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  classifyTask, bandOf, bandFor, personaFor, coreFor, parseMode,
+  classifyTask, bandOf, bandFor, personaFor, coreFor, parseMode, applyIdentity,
   isComplexTask, isFlashModel, extractText, clamp01,
   MODE_SPEC, MODE_REACT, MODE_WEAK,
 } from './router-core.ts';
@@ -114,6 +114,24 @@ test('isComplexTask: length or architecture keywords', () => {
 test('isFlashModel', () => {
   assert.ok(isFlashModel('deepseek-v4-flash-0731'));
   assert.ok(!isFlashModel('deepseek-v4-pro'));
+});
+test('applyIdentity: remove official pi identity sentence', () => {
+  const prompt = 'You are an expert coding assistant operating inside pi, a coding agent harness. You help users by reading files, executing commands, editing code, and writing new files.\n\n\n\nAvailable tools:\n- read: ...';
+  const out = applyIdentity(prompt);
+  assert.ok(!out.includes('You are an expert coding assistant'));
+  assert.ok(out.includes('Available tools:'));
+  assert.ok(out.trim().startsWith('Available tools:'));
+});
+test('applyIdentity: replace with custom text', () => {
+  const prompt = 'You are an expert coding assistant operating inside pi, a coding agent harness. You help users by reading files, executing commands, editing code, and writing new files.\n\n\n\nAvailable tools:\n- read: ...';
+  const out = applyIdentity(prompt, 'You are my coding agent.');
+  assert.ok(out.includes('You are my coding agent.'));
+  assert.ok(!out.includes('expert coding assistant'));
+  assert.ok(out.trim().startsWith('You are my coding agent.'));
+});
+test('applyIdentity: non-matching prompt left untouched (tolerant)', () => {
+  const prompt = 'Something entirely different.\n\nAvailable tools:';
+  assert.equal(applyIdentity(prompt), prompt);
 });
 test('clamp01', () => {
   assert.equal(clamp01(2), 1);

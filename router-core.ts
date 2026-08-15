@@ -157,6 +157,23 @@ export function extractText(data: unknown): string {
     .join(' ')
 }
 
+/**
+ * Remove or replace pi's official identity sentence in the base system prompt.
+ * Exact match with tolerant fallback: if pi ever rewords the sentence, the
+ * regex misses and the prompt is left untouched (no harm).
+ */
+const OFFICIAL_IDENTITY_RE =
+  /You are an expert coding assistant operating inside pi, a coding agent harness\.[\s\S]*?writing new files\.\n+/;
+
+export function applyIdentity(prompt: string, customText?: string): string {
+  const replaced = prompt.replace(OFFICIAL_IDENTITY_RE, (match) => {
+    if (customText) return `${customText.trim()}\n\n`;
+    return ""; // remove: drop the sentence and its trailing blank lines
+  });
+  return replaced === prompt ? prompt : replaced;
+}
+
+
 export function clamp01(v: unknown): number {
   return Math.min(1, Math.max(0, Number(v) || 0))
 }

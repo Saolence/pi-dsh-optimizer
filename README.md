@@ -143,6 +143,19 @@ wins over the env var.) Both languages carry the same gear semantics
 (build/fix routing, model-specific weak personas). `pi_dsh_status` shows the
 active language (`lang=en` / `lang=zh`).
 
+**Official pi identity**: pi's default template opens with "You are an expert
+coding assistant operating inside pi...". The router can remove or replace it
+(default: remove — your persona already defines who you are):
+
+```
+/pi-dsh-identity              # show current mode
+/pi-dsh-identity remove       # strip pi's official identity sentence (default)
+/pi-dsh-identity keep         # keep pi's original sentence
+/pi-dsh-identity set <text>   # replace it with your own identity sentence
+```
+
+Persisted to the same config file (survives restarts).
+
 **Persona auto-matched per model**: Pro → spec sentence + classify instruction
 (w6c, +4.67, P24); Flash → neutral + classify + recall/anti-runaway anchors
 (w7, +5.67, P11). Nothing to configure.
