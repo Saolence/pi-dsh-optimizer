@@ -77,7 +77,7 @@ const GUIDE_WEAK_EN =
 const GUIDE_DEEP_EN =
   '\nRouter: classify this task (build or fix) now, then adopt the matching style — build: direct production; fix: inspect-first. Think deeply about the architecture, edge cases, and integration points. Do not spend reasoning on the environment or tooling. Produce when your information is complete. End each reasoning block with a decision or an information need.'
 const GUIDE_WEAK_ZH =
-  '\n路由器：现在判断这个任务是构建还是修复，然后采用匹配的风格——构建：直接产出；修复：先检查。先深入思考，再动手执行。'
+  '\n路由器：现在判断这个任务是构建还是修复，然后采用匹配的风格——构建：直接产出；修复：先检查。先深入思考，锁定决策后再行动。'
 const GUIDE_DEEP_ZH =
   '\n路由器：现在判断这个任务是构建还是修复，然后采用匹配的风格——构建：直接产出；修复：先检查。深入思考架构、边界情况和集成点。不要把推理浪费在环境或工具上。信息完整后再产出。每个推理块以决策或信息需求结尾。'
 
