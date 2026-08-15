@@ -73,13 +73,13 @@ const COMPLEX_RE = /(重构|架构|全面|详细|设计|系统|优化|分析|sur
 // Inserted right after each real user message in weak mode. Simple tasks get
 // fast-convergence guidance; complex tasks get deep-exploration guidance.
 const GUIDE_WEAK_EN =
-  '\nRouter: classify this task (build or fix) now, then adopt the matching style — build: direct production; fix: inspect-first. Think deeply first, then commit and act.'
+  '\nInstruction: classify this task (build or fix) now, then adopt the matching style — build: direct production; fix: inspect-first. Think deeply first, then commit and act.'
 const GUIDE_DEEP_EN =
-  '\nRouter: classify this task (build or fix) now, then adopt the matching style — build: direct production; fix: inspect-first. Think deeply about the architecture, edge cases, and integration points. Do not spend reasoning on the environment or tooling. Produce when your information is complete. End each reasoning block with a decision or an information need.'
+  '\nInstruction: classify this task (build or fix) now, then adopt the matching style — build: direct production; fix: inspect-first. Think deeply about the architecture, edge cases, and integration points. Do not spend reasoning on the environment or tooling. Produce when your information is complete. End each reasoning block with a decision or an information need.'
 const GUIDE_WEAK_ZH =
-  '\n路由器：现在判断这个任务是构建还是修复，然后采用匹配的风格——构建：直接产出；修复：先检查。先深入思考，锁定决策后再行动。'
+  '\n指令：现在判断这个任务是构建还是修复，然后采用匹配的风格——构建：直接产出；修复：先检查。先深入思考，锁定决策后再行动。'
 const GUIDE_DEEP_ZH =
-  '\n路由器：现在判断这个任务是构建还是修复，然后采用匹配的风格——构建：直接产出；修复：先检查。深入思考架构、边界情况和集成点。不要把推理浪费在环境或工具上。信息完整后再产出。每个推理块以决策或信息需求结尾。'
+  '\n指令：现在判断这个任务是构建还是修复，然后采用匹配的风格——构建：直接产出；修复：先检查。深入思考架构、边界情况和集成点。不要把推理浪费在环境或工具上。信息完整后再产出。每个推理块以决策或信息需求结尾。'
 
 /** Pick the near-field guide for a task text, in the requested language. */
 export function guideFor(text: string, lang: PersonaLang = 'en'): string {
@@ -222,7 +222,7 @@ export function extractText(data: unknown): string {
   return ''
 }
 
-const GUIDE_PREFIXES = ['路由器：', 'Router:']
+const GUIDE_PREFIXES = ['指令：', 'Instruction:']
 
 /** True when a text is one of the injected routing guides (idempotency guard). */
 export function isGuideText(text: string): boolean {

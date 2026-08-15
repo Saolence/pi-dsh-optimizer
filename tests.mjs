@@ -179,8 +179,8 @@ test('extractText: tolerates every pi content shape (regression)', () => {
   assert.equal(extractText(42), '');
 });
 test('isGuideText: recognizes injected guides, rejects real user text', () => {
-  assert.ok(isGuideText('路由器：现在判断这个任务是构建还是修复'));
-  assert.ok(isGuideText('Router: classify this task'));
+  assert.ok(isGuideText('指令：现在判断这个任务是构建还是修复'));
+  assert.ok(isGuideText('Instruction: classify this task'));
   assert.ok(!isGuideText('你好，帮我看看这段代码'));
   assert.ok(!isGuideText(''));
 });
