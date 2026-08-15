@@ -10,12 +10,14 @@
 
 ## 快速上手
 
-把插件放进 pi 的扩展目录：
+从 GitHub（或 npm）安装：
 
 ```bash
-mkdir -p ~/.pi/agent/extensions
-cp -r pi-dsh-optimizer ~/.pi/agent/extensions/pi-dsh-optimizer
-# 重启 pi，或使用扩展重载命令
+# GitHub（推荐，始终最新）
+pi install git:github.com/Saolence/pi-dsh-optimizer
+
+# 或 npm
+pi install npm:pi-dsh-optimizer
 ```
 
 装好后多出 3 个命令，其他什么都不用管，插件自动工作。
@@ -142,6 +144,7 @@ tsc --noEmit            # 类型检查
 
 ```
 pi-dsh-optimizer/
+├── package.json    pi manifest（npm/gallery 发布用）
 ├── index.ts        插件入口：生命周期钩子 + 3 个注册工具
 ├── router-core.ts  纯路由逻辑（零 pi 依赖，可单测）
 ├── tests.mjs       单元测试

@@ -11,12 +11,14 @@ Ported from [dsh-router-standard](https://github.com/yjh051108/dsh-router-standa
 
 ## Quick start
 
-Drop the extension into pi's extension directory:
+Install from GitHub (or npm):
 
 ```bash
-mkdir -p ~/.pi/agent/extensions
-cp -r pi-dsh-optimizer ~/.pi/agent/extensions/pi-dsh-optimizer
-# restart pi, or use the extension reload command
+# GitHub (recommended, always latest)
+pi install git:github.com/Saolence/pi-dsh-optimizer
+
+# or npm
+pi install npm:pi-dsh-optimizer
 ```
 
 That's it — you get 3 extra commands and the extension works on its own.
@@ -156,6 +158,7 @@ tsc --noEmit            # type check
 
 ```
 pi-dsh-optimizer/
+├── package.json    pi manifest (npm/gallery publishing)
 ├── index.ts        extension entry: lifecycle hooks + 3 registered tools
 ├── router-core.ts  pure routing logic (zero pi deps, unit-testable)
 ├── tests.mjs       unit tests
