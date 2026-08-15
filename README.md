@@ -25,9 +25,9 @@ cp -r pi-dsh-optimizer ~/.pi/agent/extensions/pi-dsh-optimizer
 
 ## 三个工具
 
-- `router_status` — 查看当前路由状态（模式、带宽、人格、核心工具、是否已升级、是否有覆盖）
-- `router_mode` — 手动换挡：`spec` / `weak` / `mixed` / `react`，或 0-100 数字、0.0-1.0 小数；`auto` 恢复自动分类。注意：整数按百分比（0-100），`1` = 0.01，要 react 端请传 `100` / `react` / `1.0`
-- `router_subagent` — 在**全新隔离上下文**里用**不同模式**跑一个任务（自带独立 system prompt，不继承当前会话人格），返回答案文本 + reasoning 字符统计
+- `pi_dsh_status` — 查看当前路由状态（模式、带宽、人格、核心工具、是否已升级、是否有覆盖）
+- `pi_dsh_mode` — 手动换挡：`spec` / `weak` / `mixed` / `react`，或 0-100 数字、0.0-1.0 小数；`auto` 恢复自动分类。注意：整数按百分比（0-100），`1` = 0.01，要 react 端请传 `100` / `react` / `1.0`
+- `pi_dsh_subagent` — 在**全新隔离上下文**里用**不同模式**跑一个任务（自带独立 system prompt，不继承当前会话人格），返回答案文本 + reasoning 字符统计
 
 ## 开发
 

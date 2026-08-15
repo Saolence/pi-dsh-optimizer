@@ -148,7 +148,7 @@ export default function (pi: ExtensionAPI) {
   }
 
   pi.registerTool({
-    name: "router_status",
+    name: "pi_dsh_status",
     label: "Router Status",
     description: "Show this session's reasoning-mode routing: mode, band, persona, first-turn core tools, test-suppression, and whether an override is active.",
     parameters: Type.Object({}),
@@ -174,7 +174,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.registerTool({
-    name: "router_mode",
+    name: "pi_dsh_mode",
     label: "Router Mode",
     description: "Set this session's reasoning mode: spec (plan-first) / weak (internal routing, model decides per task) / mixed (transition, trap) / react (doer). Accepts band names, 0-100, or 0.0-1.0; use auto to return to task classification. The next request applies it.",
     parameters: Type.Object({
@@ -198,7 +198,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.registerTool({
-    name: "router_subagent",
+    name: "pi_dsh_subagent",
     label: "Router Subagent",
     description: "Run one task in a DIFFERENT reasoning mode than this session, in a fresh isolated context (own system prompt). The current session trajectory is untouched. Mode: spec (plan-first) / weak (internal routing) / react (doer) / balanced. Returns the answer text.",
     parameters: Type.Object({
