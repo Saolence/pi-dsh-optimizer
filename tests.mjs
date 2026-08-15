@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   classifyTask, bandOf, bandFor, personaFor, coreFor, parseMode, applyIdentity, guideFor,
-  isComplexTask, isFlashModel, extractText, isGuideText, clamp01,
+  isComplexTask, isFlashModel, extractText, isGuideText, narrowToolSection, clamp01,
   MODE_SPEC, MODE_REACT, MODE_WEAK,
 } from './router-core.ts';
 
@@ -183,4 +183,39 @@ test('isGuideText: recognizes injected guides, rejects real user text', () => {
   assert.ok(isGuideText('Router: classify this task'));
   assert.ok(!isGuideText('你好，帮我看看这段代码'));
   assert.ok(!isGuideText(''));
+});
+test('narrowToolSection: keeps only the given tools in the Available tools section', () => {
+  const base = `You are an expert coding assistant.
+
+Available tools:
+- read: Read a file
+- write: Write files
+- edit: Edit files
+- find: Search files
+- grep: Grep files
+- bash: Run commands
+
+In addition to the tools above, you may have access to other custom tools.
+
+Guidelines:
+- Be concise`;
+  const out = narrowToolSection(base, ['read', 'write', 'edit', 'bash']);
+  assert.ok(out.includes('- read: Read a file'));
+  assert.ok(out.includes('- bash: Run commands'));
+  assert.ok(!out.includes('- find: Search files'));
+  assert.ok(!out.includes('- grep: Grep files'));
+  assert.ok(out.includes('In addition to the tools above'));
+});
+test('narrowToolSection: unknown tools collapse to (none)', () => {
+  const base = `Available tools:
+- read: Read a file
+- write: Write files
+
+In addition to the tools above, you may have access to other custom tools.`;
+  const out = narrowToolSection(base, ['nope']);
+  assert.ok(out.includes('(none)'));
+});
+test('narrowToolSection: tolerant when template does not match', () => {
+  const base = 'Something entirely different without a tools section.';
+  assert.equal(narrowToolSection(base, ['read']), base);
 });

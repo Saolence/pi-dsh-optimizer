@@ -15,7 +15,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { Type } from "typebox";
 import {
   MODE_WEAK, applyIdentity, bandFor, bandOf, classifyTask, clamp01, coreFor,
-  extractText, guideFor, isFlashModel, isGuideText, parseMode, personaFor, testinessFor,
+  extractText, guideFor, isFlashModel, isGuideText, narrowToolSection, parseMode, personaFor, testinessFor,
   type PersonaLang,
 } from "./router-core.ts";
 
@@ -240,18 +240,23 @@ export default function (pi: ExtensionAPI) {
     if (st.mode === undefined) st.mode = classifyTask(firstUserText(ctx));
 
     // First-turn anchoring: narrow tool surface until the first durable call.
+    let keep: string[] | undefined;
     if (!st.promoted) {
       const core = coreFor(mode);
       const shell = 'bash';
       const narrowed = [...new Set([...core, shell])];
       const all = pi.getAllTools().map((t) => t.name);
-      const keep = narrowed.filter((name) => all.includes(name));
+      keep = narrowed.filter((name) => all.includes(name));
       pi.setActiveTools(keep);
     }
 
     // Persona goes FIRST: leading instructions get the strongest model attention
     // (primacy effect) and form the stable cache prefix across turns.
-    let base = event.systemPrompt;
+    // NOTE: event.systemPrompt is a snapshot taken BEFORE setActiveTools rebuilt
+    // the base prompt, so on the first turn it still lists the full tool catalog.
+    // Rewrite its "Available tools:" section to the narrowed set so the visible
+    // system prompt matches the API-level tool restriction.
+    let base = keep !== undefined ? narrowToolSection(event.systemPrompt, keep) : event.systemPrompt;
     // Official pi identity handling: keep | remove | replace with custom text.
     // The identity sentence is the fixed opening of pi's default template.
     const idMode = identityMode();

@@ -93,6 +93,28 @@ export function isComplexTask(text: string): boolean {
   return typeof text === 'string' && (text.length > 120 || COMPLEX_RE.test(text))
 }
 
+/**
+ * Rewrite the "Available tools:" section of a pi system prompt to only the
+ * given tool names. Tolerant: if the section can't be matched (pi reworded
+ * the template), the prompt is returned unchanged — no harm.
+ */
+const TOOLS_SECTION_RE = /(Available tools:\n)([\s\S]*?)(\n\nIn addition to the tools above)/
+export function narrowToolSection(base: string, keep: string[]): string {
+  const m = base.match(TOOLS_SECTION_RE)
+  if (!m) return base
+  const keepSet = new Set(keep)
+  const lines = m[2]
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith('- '))
+    .filter((l) => {
+      const name = l.slice(2).split(':')[0].trim()
+      return keepSet.has(name)
+    })
+  const list = lines.length > 0 ? lines.join('\n') : '(none)'
+  return base.replace(TOOLS_SECTION_RE, `$1${list}$3`)
+}
+
 /** True when the routed model id is a Flash-family model. */
 export function isFlashModel(modelId: string | undefined): boolean {
   return typeof modelId === 'string' && /flash/i.test(modelId)
