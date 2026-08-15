@@ -1,125 +1,17 @@
 # pi-dsh-optimizer
 
-**An auto-shifter for pi.** Ported from
-[dsh-router-standard](https://github.com/yjh051108/dsh-router-standard)
-(routing preset of the
-[dsh-routing-suite](https://github.com/yjh051108/dsh-routing-suite)).
+**The "auto-shifter" extension for pi.** It reads what you say, picks the most
+fitting way for the AI to work (a "gear"), and switches to it automatically.
+No manual configuration needed.
 
-## The one-line effect
+Ported from [dsh-router-standard](https://github.com/yjh051108/dsh-router-standard)
+(routing preset of the [dsh-routing-suite](https://github.com/yjh051108/dsh-routing-suite)).
 
-It reads what you say, decides whether you want to **build** or **fix**, and
-switches the AI into the matching gear:
+---
 
-| You say | Gear | The AI does |
-|---|---|---|
-| "make me a website / write a script" | **react (doer)** | writes code and runs it directly, minimal talk |
-| "fix this bug / debug this error" | **spec (planner)** | reads code first, thinks, then edits |
-| vague / chit-chat | **weak (self-route)** | decides for itself |
+## Quick start
 
-> Why: measurements show these models behave as a handful of **stable gears**,
-> not a continuously tunable knob. The in-between "half-plan, half-doer"
-> settings are a trap (unstable, erratic). So the router only ever picks the
-> stable gears and avoids the trap region.
-
-## What it does (4 things)
-
-1. **Swaps persona** — injects the per-gear work style into the system prompt
-   (spec plan-first / react doer / weak self-route).
-2. **Starts narrow** — first turn exposes only the gear's core tools
-   (spec read-first, react write-first) so a huge catalog can't distract.
-3. **Opens up after you work** — after the first real tool call, the full
-   catalog unlocks and the router stops touching anything.
-4. **State survives** — the mode derives from durable session events, so
-   resume/reload keeps it.
-
-**Extra per-message guidance**: in weak mode, after each of your messages it
-quietly inserts "classify this task (build or fix) first"; complex tasks get
-the deep variant ("think hard about architecture and edge cases, don't burn
-reasoning on the environment").
-
-**Manual control**:
-- `pi_dsh_status` — see the current gear (mode/persona/core tools/promoted/override)
-- `pi_dsh_mode` — shift gears by hand (spec/weak/mixed/react, or 0-100, 0.0-1.0; `auto` returns to auto-classification)
-- `pi_dsh_subagent` — spawn a small AI in a DIFFERENT gear without touching this session
-
-**中文版**: [README.zh-CN.md](README.zh-CN.md)
-
-## The measured behavior bands
-
-Fine-grained probing (21 mode points × n=2, official API, reasoning_effort=max)
-on V4 Pro shows behavior along the persona axis collapses into **three bands**
-plus a fourth mode for internal routing:
-
-| band | mode | measured behavior |
-|---|---|---|
-| `spec` | 0 – 0.19 | stable plan-collective (`We` trajectories, let-me ≈ 0) |
-| `mixed` | 0.2 – 0.49 | **transition trap**: unstable mixing of `We`/`The`/`Let` |
-| `react` | 0.5 – 1.0 | stable doer (`The`/`Let` first-person, we ≈ 0) — 11 mode values behave alike |
-| `weak` | internal | model routes itself per task (weak persona, P8/P11) |
-
-V4 Flash is threshold-like (0–0.5 all spec side, jumps at 0.75+). The numeric
-`pi_dsh_mode` interface is kept, but it quantizes to the three bands — the
-transition band is never selected automatically.
-
-## Why: dual-attractor RL policy
-Evidence across projects (see the upstream `docs/paper.md` and
-`docs/experiments.md`):
-
-### Same model, different modes — measured here
-
-The effect is not theoretical. Running the SAME model (`deepseek-v4-flash-0731`)
-on the SAME task in all four modes produces visibly different behavior:
-
-**Simple task (fix a Python dedupe bug) — all four got it right, differently:**
-
-| mode | opening move | flavor |
-|---|---|---|
-| spec | analysis first ("the bug is…") | most thorough explanation |
-| react | fix first, then explain | code-first |
-| mixed | one-line diagnosis, then fix | in-between |
-| weak | conclusion first ("classic dedupe bug") | most complete workflow walkthrough |
-
-**Complex task (review a full-stack approval system's architecture):**
-the differences amplified:
-
-| mode | approach | standout finding |
-|---|---|---|
-| spec | deepest engineering review | soft-delete + non-unique approval_no → audit-trail hazard |
-| react | pragmatic, actionable, ends with a prioritized summary | state-machine reject-boundary gaps |
-| mixed | broadest (7 risks), but ran long | single-worker availability + missing optimistic lock on non-status fields |
-| weak | consultant-style, compliance lens | plaintext data (data-security law), un-HMAC'd logs, no business-rule engine |
-
-All four independently converged on the same top-3 core risks (default
-SECRET_KEY + open CORS, SQLite concurrency, fragile hand-rolled migrations) —
-the difference is *how* each mode frames and prioritizes them.
-
-Then the upstream evidence:
-
-- The **same model** reaches top-band scores under spec conditions on a
-  maintenance benchmark (Project2: minimal 99/96, anchored 98/99) and under
-  react/code conditions on a greenfield build task (Mario: 10/10), while the
-  wrong mode scores 91 / 6 respectively — a ~10-point swing from prompt
-  conditioning alone ("god/ghost duality").
-- Persona is the dominant trigger (one-sentence swap flips the trajectory);
-  tool-schema surface is a secondary condition.
-- Behavior is path-committed: once anchored, expanding the tool catalog
-  perturbs at most one reasoning block and never flips the mode.
-- The model cannot self-route: the only internal-routing window is a **weak
-  persona** + few-shot routing instruction (lean, not flip; discrimination
-  +2.3..+3.3). **Mode selection must come from outside.** This extension is
-  the automated version of that external routing.
-## How it maps to pi
-
-| dsh-router-standard | pi-dsh-optimizer |
-|---|---|
-| `system-prompt/assemble` (persona section) | `before_agent_start` (persona) + `pi.setActiveTools` (first-turn tool surface) |
-| `session/event` inbox.append (near-field guidance) | `context` event (guidance injected right after the last user message) |
-| `tools.register` (`dev_router_*`) | `pi.registerTool` (`pi_dsh_status` / `pi_dsh_mode` / `pi_dsh_subagent`) |
-| `session.events` derivation | `ctx.sessionManager` branch scan |
-
-## Usage
-
-Install as a pi extension:
+Drop the extension into pi's extension directory:
 
 ```bash
 mkdir -p ~/.pi/agent/extensions
@@ -127,66 +19,156 @@ cp -r pi-dsh-optimizer ~/.pi/agent/extensions/pi-dsh-optimizer
 # restart pi, or use the extension reload command
 ```
 
-Dependencies: `@earendil-works/pi-coding-agent`, `typebox` (tsconfig paths
-point at local installs; loaded directly from `.ts` source).
+That's it — you get 3 extra commands and the extension works on its own.
 
-### The three tools
+---
 
-- **`pi_dsh_status`** — current mode, band, persona, first-turn core tools,
-  test-suppression, whether the catalog has been promoted, and whether an
-  override is active.
-- **`pi_dsh_mode <spec|weak|mixed|react|0-100|0.0-1.0|auto>`** — explicit
-  mode. Numeric inputs quantize to the three bands. NOTE: integers are
-  PERCENT (0-100): `1` = 0.01, pass `100`/`react`/`1.0` for the react end.
-  `auto` clears the override and returns to task classification. The next
-  request applies it.
-- **`pi_dsh_subagent <mode> <task>`** — run one task in a DIFFERENT reasoning
-  mode inside a fresh isolated context (its own system prompt), leaving the
-  current trajectory untouched. Returns the answer text plus a reasoning
-  character count. Mode isolation is the only reliable way to change modes
-  mid-session: the native subagent inherits this session's persona, so a
-  plain subagent cannot run a different mode.
+## What it does (30-second read)
 
-## One preset, auto-matched per model
+You talk; it decides whether you're trying to **build** or **fix**, then
+shifts the AI into the matching gear:
 
-There is no Pro/Flash split to configure: `personaFor(mode, modelId)` reads
-the session's model route and selects the measured optimum automatically —
-Pro → spec sentence + classify instruction (w6c, +4.67, P24), Flash → neutral
-+ classify + recall/anti-runaway anchors (w7, +5.67, P11). The model is fixed
-at the first request (path commitment), so the persona is locked for the
-session.
+| You say | Gear | What the AI does |
+|---|---|---|
+| "make me a website / write a script" | 🚀 react (doer) | writes code and runs it, minimal talk |
+| "fix this bug / debug this error" | 🔍 spec (planner) | reads code first, thinks, then edits |
+| vague / chit-chat | 🤔 weak (self-route) | decides for itself |
 
-## Depth-adaptive guidance (thinking efficiency)
+### It does 4 things
 
-Per-message guidance is dispatched by task complexity
-(`isComplexTask`: length or architecture keywords), weak mode only:
+1. **Swaps persona** — per-gear work style injected into the AI's setup
+   (planner / doer / self-route).
+2. **Starts narrow** — first turn exposes only core tools so a huge catalog
+   can't distract.
+3. **Opens up after you work** — after your first real tool call, the full
+   catalog unlocks and the router steps away.
+4. **State survives** — the gear is derived from the session, so reload and
+   resume keep it.
 
-- **simple tasks** → fast-convergence guide (one step, zero waste);
-- **complex tasks** → decision-closure deep guide: "Think deeply about the
-  architecture, edge cases, and integration points. Do not spend reasoning on
-  the environment or tooling. Produce when your information is complete. End
-  each reasoning block with a decision or an information need."
+### The 3 manual tools
 
-## Tests
+| Tool | What it does | How to call |
+|---|---|---|
+| `pi_dsh_status` | see the current gear | no arguments |
+| `pi_dsh_mode` | shift gears by hand | `spec` / `react` / `weak` / `mixed`, a number, or `auto` to restore |
+| `pi_dsh_subagent` | run a small AI in a DIFFERENT gear | mode + task; doesn't touch this session |
+
+> Numbers are PERCENT (0-100): `100` = react, `1` = 0.01 (near spec). Easiest
+> to just pass names: `spec` / `react` / `weak` / `mixed`.
+
+---
+
+## Measured results (same model, different gears)
+
+Running the SAME model on the SAME task, the four gears produce visibly
+different behavior:
+
+**Simple task (fix a dedupe bug) — all got it right, differently:**
+
+| gear | opening move | flavor |
+|---|---|---|
+| spec | analyze first | most thorough explanation |
+| react | fix first | code-first, terse |
+| mixed | one-line diagnosis | in-between |
+| weak | conclusion first | fullest walkthrough |
+
+**Complex task (review a system's architecture) — differences amplified:**
+
+| gear | focus | standout finding |
+|---|---|---|
+| spec | deepest engineering review | soft-delete + non-unique id → audit hazard |
+| react | pragmatic, prioritized | state-machine reject-boundary gap |
+| mixed | broadest coverage | single-process availability + no concurrency guard on fields |
+| weak | compliance consultant lens | plaintext data, no tamper-proof logs, no rule engine |
+
+All four independently converged on the same top-3 risks (default key + open
+CORS, SQLite concurrency, hand-rolled migrations) — the difference is only in
+**how they phrase and prioritize**.
+
+---
+
+## The four modes (think of a car's gears)
+
+| mode | alias | when | tools | tests |
+|---|---|---|---|---|
+| `spec` | planner | fix bugs, debug, refactor | read-first | normal |
+| `react` | doer | build from scratch, scripts | write-first | suppressed |
+| `mixed` | mixed | ⚠️ avoid | union | light |
+| `weak` | self-route (default) | not sure | write-first | light |
+
+**Why no fine-tuning?** Measured: model behavior is NOT a knob — it has a few
+**stable gears**, and the in-between "half-plan, half-doer" settings are a
+**trap** (erratic). So the router only ever picks stable gears.
+
+**Default is `weak`** — most chats use it; the AI decides for itself, and you
+barely notice the plugin exists.
+
+---
+
+## How it works (only if you care)
+
+1. **Reads your first message** → keyword match → gear:
+   - more doer words (create/build/implement…) than planner words → react
+   - more planner words (fix/debug/refactor…) than doer words → spec
+   - roughly even or none → weak
+2. **First request**: injects persona + exposes only core tools.
+3. **After your first real tool call**: full catalog unlocks, no more
+   intervention.
+4. **Per-message nudge** (weak only): after each message, quietly inserts
+   "classify build-or-fix first"; complex tasks get the deep guide (think hard
+   about architecture, don't burn reasoning on the environment).
+
+**Mapping from dsh-router-standard:**
+
+| dsh mechanism | pi mechanism |
+|---|---|
+| `system-prompt/assemble` (persona section) | `before_agent_start` (persona) + `setActiveTools` (first-turn tools) |
+| `session/event` near-field guidance | `context` event (inserted after the last user message) |
+| `tools.register` (`dev_router_*`) | `pi.registerTool` (`pi_dsh_*`) |
+| `session.events` derivation | `ctx.sessionManager` branch scan |
+
+**Persona auto-matched per model**: Pro → spec sentence + classify instruction
+(w6c, +4.67, P24); Flash → neutral + classify + recall/anti-runaway anchors
+(w7, +5.67, P11). Nothing to configure.
+
+---
+
+## Why it's worth it (theory, short version)
+
+- The **same model** scores top-band on both task families when the gear
+  matches; the wrong gear drops ~10 points — a pure prompt-conditioning swing
+  ("god/ghost duality").
+- The model **cannot shift gears itself**: behavior locks at the first request;
+  mid-session changes barely work.
+- So **gear selection must come from outside** — a human, a classifier, or
+  this extension. It's your manual gear-shifting automated.
+
+---
+
+## Development
 
 ```sh
 node --test tests.mjs   # 17 tests: classification, bands, personas, parseMode regressions, helpers
 tsc --noEmit            # type check
 ```
 
-## Files
+## File structure
 
-- `index.ts` — extension entry: lifecycle hooks (`session_start`,
-  `before_agent_start`, `tool_call`, `context`) + the three registered tools
-- `router-core.ts` — pure routing logic (zero pi deps, unit-testable)
-- `tests.mjs` — unit tests
-- `tsconfig.json` — type-check config (paths to local pi install)
+```
+pi-dsh-optimizer/
+├── index.ts        extension entry: lifecycle hooks + 3 registered tools
+├── router-core.ts  pure routing logic (zero pi deps, unit-testable)
+├── tests.mjs       unit tests
+├── tsconfig.json   type-check config
+├── README.md       this file (English)
+└── README.zh-CN.md this file (Chinese)
+```
 
 ## Evidence & attribution
 
 - Upstream theory + experiments: [dsh-router-standard](https://github.com/yjh051108/dsh-router-standard)
   (`docs/paper.md`, `docs/experiments.md`), based on
-  [dsh-probe](https://github.com/yjh051108/dsh-routing-suite) measurements.
+  [dsh-routing-suite](https://github.com/yjh051108/dsh-routing-suite) measurements.
 - Project2 evaluation data: [xiaobright/modeltest](https://github.com/xiaobright/modeltest)
   (V4.1b, frozen) — minimal 99/96, standard 91, PTC 92, anchored-standard 98/99.
 - Two-phase anchoring preset: [xiaobright/dsh-anchored-standard](https://github.com/xiaobright/dsh-anchored-standard)
