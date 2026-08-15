@@ -8,6 +8,9 @@
  *   - dsh `tools.register` → `pi.registerTool` (router_status / router_mode / router_subagent)
  *   - dsh `session.events` derivation → `ctx.sessionManager` branch scan
  */
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import {
@@ -16,11 +19,58 @@ import {
   type PersonaLang,
 } from "./router-core.ts";
 
-// ── persona language: PI_DSH_LANG=zh|en (default en, backward compatible) ──
+// ── persona language: persistent config > PI_DSH_LANG env > default en ──
+// `/pi-dsh-lang zh|en` writes the config file so the choice survives restarts.
 const PERSONA_LANG_ENV = "PI_DSH_LANG";
+const LANG_CONFIG_FILE = "pi-dsh-optimizer.json";
+const DEFAULT_LANG: PersonaLang = "en";
+
+function langConfigPath(): string {
+  return join(homedir(), ".pi", "agent", LANG_CONFIG_FILE);
+}
+
+function parseLang(v: string | undefined): PersonaLang | undefined {
+  const t = (v ?? "").trim().toLowerCase();
+  if (t === "zh" || t === "cn" || t === "chinese") return "zh";
+  if (t === "en" || t === "english") return "en";
+  return undefined;
+}
+
+let cachedLang: PersonaLang | undefined; // process-lifetime cache (command updates it)
+let configLang: PersonaLang | undefined;
+
+/** Load persisted lang from the config file (called once at startup). */
+function loadConfigLang(): PersonaLang | undefined {
+  if (configLang !== undefined) return configLang;
+  try {
+    const raw = readFileSync(langConfigPath(), "utf-8");
+    const parsed = JSON.parse(raw) as { lang?: string };
+    configLang = parseLang(parsed?.lang);
+  } catch {
+    configLang = undefined; // missing or corrupt file → fall through to env/default
+  }
+  return configLang;
+}
+
+/** Persist lang to the config file; survives restarts. */
+function saveConfigLang(lang: PersonaLang): void {
+  try {
+    mkdirSync(dirname(langConfigPath()), { recursive: true });
+    writeFileSync(langConfigPath(), JSON.stringify({ lang }, null, 2) + "\n", "utf-8");
+    configLang = lang;
+    cachedLang = lang;
+  } catch (error) {
+    console.error(`[pi-dsh-optimizer] failed to persist lang config: ${String(error)}`);
+  }
+}
+
+/** Effective persona language: config file wins, then env, then default. */
 function personaLang(): PersonaLang {
-  const v = (process.env[PERSONA_LANG_ENV] ?? "").trim().toLowerCase();
-  return v === "zh" || v === "cn" || v === "chinese" ? "zh" : "en";
+  if (cachedLang !== undefined) return cachedLang;
+  const fromConfig = loadConfigLang();
+  if (fromConfig !== undefined) return fromConfig;
+  const fromEnv = parseLang(process.env[PERSONA_LANG_ENV]);
+  return fromEnv ?? DEFAULT_LANG;
 }
 
 interface SessionState {
@@ -69,6 +119,32 @@ function effectiveMode(sessionId: string, ctx: ExtensionContext): number | 'weak
 }
 
 export default function (pi: ExtensionAPI) {
+  // ── slash command: /pi-dsh-lang [zh|en] — persistent language switch ─────
+  pi.registerCommand("pi-dsh-lang", {
+    description: "Switch the injected persona language (zh/en). Persisted — survives restarts. Usage: /pi-dsh-lang zh | /pi-dsh-lang en | /pi-dsh-lang (show current).",
+    handler: async (args, ctx) => {
+      const arg = String(args ?? "").trim();
+      const target = arg ? parseLang(arg) : undefined;
+      const current = personaLang();
+      if (arg && target === undefined) {
+        ctx.ui?.notify?.(`pi-dsh-lang: invalid value "${arg}" — use zh or en (current: ${current})`, "warning");
+        return;
+      }
+      if (arg && target !== undefined) {
+        saveConfigLang(target);
+        ctx.ui?.notify?.(
+          `pi-dsh-lang: persona language switched to ${target} (persisted to ${langConfigPath()}); next request applies it.`,
+          "info",
+        );
+        return;
+      }
+      ctx.ui?.notify?.(
+        `pi-dsh-lang: current persona language = ${current} (persisted config: ${loadConfigLang() ?? "none"}). Use /pi-dsh-lang zh or /pi-dsh-lang en to switch permanently.`,
+        "info",
+      );
+    },
+  });
+
   // ── session lifecycle: rebuild per-session state ─────────────────────────
   pi.on("session_start", async (_event, ctx) => {
     const sessionId = ctx.sessionManager.getSessionId();

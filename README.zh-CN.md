@@ -119,10 +119,18 @@ SQLite 并发、手工迁移）——区别只在**怎么表述、怎么排序**
 | `tools.register`（`dev_router_*`） | `pi.registerTool`（`pi_dsh_*`） |
 | `session.events` 推导 | `ctx.sessionManager` 分支扫描 |
 
-**人格语言**：默认英文；在环境变量里设 `PI_DSH_LANG=zh`（例如写进
-`pi-web.service` 或你的 shell）即可注入中文人格。两种语言承载完全相同的
-档位语义（build/fix 路由、按模型区分的 weak 人格）。`pi_dsh_status`
-会显示当前语言（`lang=en` / `lang=zh`）。
+**人格语言**：默认英文。用斜杠命令永久切换（写入
+`~/.pi/agent/pi-dsh-optimizer.json`，重启后依然生效）：
+
+```
+/pi-dsh-lang        # 查看当前语言
+/pi-dsh-lang zh     # 切换为中文人格
+/pi-dsh-lang en     # 切回英文人格
+```
+
+（也可以设环境变量 `PI_DSH_LANG=zh`——配置文件优先于环境变量。）
+两种语言承载完全相同的档位语义（build/fix 路由、按模型区分的 weak 人格）。
+`pi_dsh_status` 会显示当前语言（`lang=en` / `lang=zh`）。
 
 **按模型自动匹配人格**：Pro 用 spec 句 + 分类指令（w6c, +4.67, P24）；
 Flash 用中性 + 分类 + 回顾/反跑题锚（w7, +5.67, P11）。你不需要配置。

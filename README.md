@@ -129,9 +129,17 @@ barely notice the plugin exists.
 | `tools.register` (`dev_router_*`) | `pi.registerTool` (`pi_dsh_*`) |
 | `session.events` derivation | `ctx.sessionManager` branch scan |
 
-**Persona language**: English by default; set `PI_DSH_LANG=zh` in your
-environment (e.g. in `pi-web.service` or your shell) to inject the Chinese
-persona set instead. Both languages carry the same gear semantics
+**Persona language**: English by default. Switch permanently with the slash
+command (persisted to `~/.pi/agent/pi-dsh-optimizer.json`, survives restarts):
+
+```
+/pi-dsh-lang        # show current language
+/pi-dsh-lang zh     # switch to Chinese persona
+/pi-dsh-lang en     # switch back to English persona
+```
+
+(Alternatively, set `PI_DSH_LANG=zh` in your environment — the config file
+wins over the env var.) Both languages carry the same gear semantics
 (build/fix routing, model-specific weak personas). `pi_dsh_status` shows the
 active language (`lang=en` / `lang=zh`).
 
