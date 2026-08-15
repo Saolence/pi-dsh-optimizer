@@ -1,32 +1,48 @@
 # pi-dsh-optimizer
 
-**Task-aware reasoning-mode router for pi.** A pi extension that classifies
-each task and routes the session to the right reasoning mode before the first
-model request. Ported from
+**An auto-shifter for pi.** Ported from
 [dsh-router-standard](https://github.com/yjh051108/dsh-router-standard)
 (routing preset of the
 [dsh-routing-suite](https://github.com/yjh051108/dsh-routing-suite)).
 
-> This is a research artifact. It encodes a measured property of DeepSeek V4
-> Pro / V4 Flash: model behavior along the persona axis is **not a continuum**
-> — it collapses into a few stable regions separated by phase transitions.
-> The router therefore quantizes to the stable regions instead of pretending
-> the axis is continuously tunable.
+## The one-line effect
+
+It reads what you say, decides whether you want to **build** or **fix**, and
+switches the AI into the matching gear:
+
+| You say | Gear | The AI does |
+|---|---|---|
+| "make me a website / write a script" | **react (doer)** | writes code and runs it directly, minimal talk |
+| "fix this bug / debug this error" | **spec (planner)** | reads code first, thinks, then edits |
+| vague / chit-chat | **weak (self-route)** | decides for itself |
+
+> Why: measurements show these models behave as a handful of **stable gears**,
+> not a continuously tunable knob. The in-between "half-plan, half-doer"
+> settings are a trap (unstable, erratic). So the router only ever picks the
+> stable gears and avoids the trap region.
+
+## What it does (4 things)
+
+1. **Swaps persona** — injects the per-gear work style into the system prompt
+   (spec plan-first / react doer / weak self-route).
+2. **Starts narrow** — first turn exposes only the gear's core tools
+   (spec read-first, react write-first) so a huge catalog can't distract.
+3. **Opens up after you work** — after the first real tool call, the full
+   catalog unlocks and the router stops touching anything.
+4. **State survives** — the mode derives from durable session events, so
+   resume/reload keeps it.
+
+**Extra per-message guidance**: in weak mode, after each of your messages it
+quietly inserts "classify this task (build or fix) first"; complex tasks get
+the deep variant ("think hard about architecture and edge cases, don't burn
+reasoning on the environment").
+
+**Manual control**:
+- `pi_dsh_status` — see the current gear (mode/persona/core tools/promoted/override)
+- `pi_dsh_mode` — shift gears by hand (spec/weak/mixed/react, or 0-100, 0.0-1.0; `auto` returns to auto-classification)
+- `pi_dsh_subagent` — spawn a small AI in a DIFFERENT gear without touching this session
 
 **中文版**: [README.zh-CN.md](README.zh-CN.md)
-
-## What it does
-
-Reads the session's first user message, classifies the task, and on the first
-model request injects:
-
-1. a **persona** matching the reasoning mode (spec plan-first / react doer /
-   weak internal-routing), and
-2. a **first-turn core tool set** (read-first for spec, write-first for react).
-
-After the first durable tool call the full tool catalog is exposed and the
-router stops touching anything. The mode is derived from durable session
-events, so resume/reload keeps it.
 
 ## The measured behavior bands
 
