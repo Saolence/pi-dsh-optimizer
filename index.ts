@@ -15,7 +15,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { Type } from "typebox";
 import {
   MODE_WEAK, applyIdentity, bandFor, bandOf, classifyTask, clamp01, coreFor,
-  extractText, isComplexTask, isFlashModel, parseMode, personaFor, testinessFor,
+  extractText, guideFor, isFlashModel, parseMode, personaFor, testinessFor,
   type PersonaLang,
 } from "./router-core.ts";
 
@@ -274,11 +274,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   // ── near-field routing guidance for weak mode (P14/P16/P17/P19/P20) ──────
-  const GUIDE_WEAK =
-    '\nRouter: classify this task (build or fix) now, then adopt the matching style — build: direct production; fix: inspect-first. Think deeply first, then commit and act.'
-  const GUIDE_DEEP =
-    '\nRouter: classify this task (build or fix) now, then adopt the matching style — build: direct production; fix: inspect-first. Think deeply about the architecture, edge cases, and integration points. Do not spend reasoning on the environment or tooling. Produce when your information is complete. End each reasoning block with a decision or an information need.'
-
+  // Guide text lives in router-core (guideFor), localized by PI_DSH_LANG.
   pi.on("context", (event, ctx) => {
     const sessionId = ctx.sessionManager.getSessionId();
     const mode = effectiveMode(sessionId, ctx);
@@ -295,9 +291,7 @@ export default function (pi: ExtensionAPI) {
       if (text.trim()) { lastUserIdx = i; break; }
     }
     if (lastUserIdx < 0) return;
-    const guide = isComplexTask(extractText((messages[lastUserIdx] as { content?: unknown }).content ?? ''))
-      ? GUIDE_DEEP
-      : GUIDE_WEAK;
+    const guide = guideFor(extractText((messages[lastUserIdx] as { content?: unknown }).content ?? ''), personaLang());
 
     const next = [...messages];
     next.splice(lastUserIdx + 1, 0, {

@@ -59,17 +59,36 @@ const WEAK_FLASH =
   'You are a helpful assistant.\n'
   + 'Before acting, decide the task type (build or fix) and adopt the matching '
   + 'style: build → hands-on production; fix → inspect-and-plan.\n'
-  + 'Before acting, briefly review what you have already done in this session and continue from where you left off; do not repeat completed steps. Do not run environment checks (echo, whoami, uname, node --version, date) or exhaustive grep/glob scans.'
+  + 'Before acting, briefly review what you have already done in this session and continue from where you left off; do not repeat completed steps. Do not run environment checks (echo, whoami, uname, node --version, date) or exhaustive grep/find scans.'
 const WEAK_FLASH_ZH =
   '你是一名乐于助人的助手。\n'
   + '行动前先判断任务类型（构建或修复），并采用匹配的风格：'
   + '构建 → 直接动手产出；修复 → 先检查再规划。\n'
   + '行动前先简要回顾本会话已完成的工作，并从上次停止的地方继续；'
   + '不要重复已完成步骤。不要运行环境检查（echo、whoami、uname、node --version、date）'
-  + '或进行穷举式的 grep/glob 扫描。'
+  + '或进行穷举式的 grep/find 扫描。'
 /** Complexity heuristic: long or architecturally-worded tasks are COMPLEX. */
 const COMPLEX_RE = /(重构|架构|全面|详细|设计|系统|优化|分析|survey|overview|architecture|refactor|comprehensive|detailed|design|system|optimize|analyze)/i
+// ── near-field routing guidance (P14/P16/P17/P19/P20) ─────────────────────
+// Inserted right after each real user message in weak mode. Simple tasks get
+// fast-convergence guidance; complex tasks get deep-exploration guidance.
+const GUIDE_WEAK_EN =
+  '\nRouter: classify this task (build or fix) now, then adopt the matching style — build: direct production; fix: inspect-first. Think deeply first, then commit and act.'
+const GUIDE_DEEP_EN =
+  '\nRouter: classify this task (build or fix) now, then adopt the matching style — build: direct production; fix: inspect-first. Think deeply about the architecture, edge cases, and integration points. Do not spend reasoning on the environment or tooling. Produce when your information is complete. End each reasoning block with a decision or an information need.'
+const GUIDE_WEAK_ZH =
+  '\n路由器：现在判断这个任务是构建还是修复，然后采用匹配的风格——构建：直接产出；修复：先检查。先深入思考，再动手执行。'
+const GUIDE_DEEP_ZH =
+  '\n路由器：现在判断这个任务是构建还是修复，然后采用匹配的风格——构建：直接产出；修复：先检查。深入思考架构、边界情况和集成点。不要把推理浪费在环境或工具上。信息完整后再产出。每个推理块以决策或信息需求结尾。'
 
+/** Pick the near-field guide for a task text, in the requested language. */
+export function guideFor(text: string, lang: PersonaLang = 'en'): string {
+  const complex = isComplexTask(text)
+  if (lang === 'zh') return complex ? GUIDE_DEEP_ZH : GUIDE_WEAK_ZH
+  return complex ? GUIDE_DEEP_EN : GUIDE_WEAK_EN
+}
+
+/** Complexity heuristic: long or architecturally-worded tasks are COMPLEX. */
 export function isComplexTask(text: string): boolean {
   return typeof text === 'string' && (text.length > 120 || COMPLEX_RE.test(text))
 }

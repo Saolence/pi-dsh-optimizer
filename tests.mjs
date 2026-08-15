@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  classifyTask, bandOf, bandFor, personaFor, coreFor, parseMode, applyIdentity,
+  classifyTask, bandOf, bandFor, personaFor, coreFor, parseMode, applyIdentity, guideFor,
   isComplexTask, isFlashModel, extractText, clamp01,
   MODE_SPEC, MODE_REACT, MODE_WEAK,
 } from './router-core.ts';
@@ -108,6 +108,27 @@ test('isComplexTask: length or architecture keywords', () => {
   assert.ok(isComplexTask('x'.repeat(121)));
   assert.ok(isComplexTask('设计一个系统的架构'));
   assert.ok(!isComplexTask('修一下这个'));
+});
+test('guideFor: simple → weak guide, complex → deep guide (en)', () => {
+  assert.match(guideFor('修一下这个', 'en'), /classify this task/);
+  assert.match(guideFor('设计一个系统的架构', 'en'), /Think deeply about the architecture/);
+  assert.match(guideFor('x'.repeat(121), 'en'), /Think deeply about the architecture/);
+});
+test('guideFor: zh localized', () => {
+  assert.match(guideFor('修一下这个', 'zh'), /判断这个任务是构建还是修复/);
+  assert.match(guideFor('设计一个系统的架构', 'zh'), /深入思考架构/);
+  assert.ok(!guideFor('修一下这个', 'zh').includes('Router:'));
+});
+test('guideFor: default lang is en', () => {
+  assert.match(guideFor('修一下这个'), /classify this task/);
+});
+test('WEAK_FLASH anchor uses find (pi tool), not glob (dsh tool)', () => {
+  const flash = personaFor(MODE_WEAK, 'deepseek-v4-flash-0731');
+  const flashZh = personaFor(MODE_WEAK, 'deepseek-v4-flash-0731', 'zh');
+  assert.ok(!flash.includes('grep/glob scans'), 'en anchor should not say glob');
+  assert.ok(flash.includes('grep/find scans'), 'en anchor should say find');
+  assert.ok(!flashZh.includes('grep/glob'), 'zh anchor should not say glob');
+  assert.ok(flashZh.includes('grep/find'), 'zh anchor should say find');
 });
 
 // ── helpers ──
