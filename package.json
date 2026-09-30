@@ -1,6 +1,6 @@
 {
   "name": "pi-dsh-optimizer",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "The official dsh `minimal` first request for pi. DeepSeek was post-trained on a minimal harness, so the first request carries only the dsh minimal persona and its two tools (bash, str_replace_editor); afterwards pi's full prompt returns with its official identity sentence swapped for a configurable `we need to` chain-of-thought block that stops the \"let me…\" reasoning loop.",
   "keywords": [
     "pi-package",

@@ -25,11 +25,11 @@ const STR_REPLACE_EDITOR_PARAMETERS = Type.Object({
 		description: EDITOR_COMMAND_DESCRIPTION,
 	}),
 	path: Type.String({ description: EDITOR_PATH_DESCRIPTION }),
-	file_text: Type.Optional(Type.String({ description: EDITOR_FILE_TEXT_DESCRIPTION })),
-	insert_line: Type.Optional(Type.Integer({ description: EDITOR_INSERT_LINE_DESCRIPTION })),
-	new_str: Type.Optional(Type.String({ description: EDITOR_NEW_STR_DESCRIPTION })),
-	old_str: Type.Optional(Type.String({ description: EDITOR_OLD_STR_DESCRIPTION })),
-	view_range: Type.Optional(Type.Array(Type.Integer(), { description: EDITOR_VIEW_RANGE_DESCRIPTION })),
+	file_text: Type.Optional(Type.Union([Type.String(), Type.Null()], { description: EDITOR_FILE_TEXT_DESCRIPTION })),
+	insert_line: Type.Optional(Type.Union([Type.Integer(), Type.Null()], { description: EDITOR_INSERT_LINE_DESCRIPTION })),
+	new_str: Type.Optional(Type.Union([Type.String(), Type.Null()], { description: EDITOR_NEW_STR_DESCRIPTION })),
+	old_str: Type.Optional(Type.Union([Type.String(), Type.Null()], { description: EDITOR_OLD_STR_DESCRIPTION })),
+	view_range: Type.Optional(Type.Union([Type.Array(Type.Integer()), Type.Null()], { description: EDITOR_VIEW_RANGE_DESCRIPTION })),
 });
 
 interface EditorParams {

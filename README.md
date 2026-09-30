@@ -6,7 +6,7 @@
 >
 > This extension gives the model the opening it *was* trained on — the official `minimal` surface, verbatim — then hands everything back.
 
-`pi` extension · zero config · no model whitelist · 41 tests
+`pi` extension · zero config · DeepSeek-only by default · 52 tests
 
 ---
 
@@ -89,7 +89,7 @@ In practice: shorter thinking, fewer restarts, less filler before the first tool
 pi install npm:pi-dsh-optimizer
 ```
 
-Restart pi. Done. No model to declare, no provider to configure, no whitelist to maintain — if pi is driving a model, the first request of each session is anchored.
+Restart pi. Done. No model to declare, no provider to configure — DeepSeek is matched out of the box, every other model is left completely untouched, and the first request of each session is anchored.
 
 ---
 
@@ -102,7 +102,7 @@ Restart pi. Done. No model to declare, no provider to configure, no whitelist to
 - **DSML bridge** — when the model leaks a tool call as text instead of calling it, the call still runs. Zero config.
 - **Auditable** — `PI_DSH_OPTIMIZER_DUMP=1` writes the real outgoing request to disk, so you can verify the anchor yourself.
 - **Non-destructive** — nothing is patched, patched back, or left in a modified state. The anchor is a property of one request, not of your session.
-- **No model gate** — every model works. DeepSeek gains the most (see above); others simply get a leaner first turn.
+- **DeepSeek-only by default** — the `models` whitelist decides. DeepSeek matches case-insensitively (`*deepseek*`, and the provider counts too); every other model is left completely untouched. `"models": []` hands the plugin back to all of them.
 
 ---
 
@@ -111,11 +111,11 @@ Restart pi. Done. No model to declare, no provider to configure, no whitelist to
 | Thing | What it does |
 |---|---|
 | `/dsh-optimizer` | menu: thinking style, mode, preview, reset, path |
-| `pi_dsh_status` | tool — prints `phase=`, `model=`, `surface=`, `tools=` |
+| `pi_dsh_status` | tool — prints `phase=`, `model=`, `active=`, `models=`, `surface=`, `tools=` |
 | `PI_DSH_OPTIMIZER_DUMP=1` | dump outgoing requests for verification |
-| `~/.pi/agent/pi-dsh-optimizer.json` | `{ "mode": "replace", "text": "…" }` |
+| `~/.pi/agent/pi-dsh-optimizer.json` | `{ "mode": "replace", "text": "…", "models": ["*deepseek*"] }` |
 
-There is deliberately **no `enabled` flag**: uninstall the package to turn it off. A settings switch is one more thing to get out of sync with reality.
+There is deliberately **no `enabled` flag**: the `models` whitelist *is* the switch, and it is case-insensitive. A model outside it is left completely alone — pi's prompt goes out untouched and the tool catalog is never narrowed — and `"models": []` (or `["*"]`) hands the plugin back to every model. A second switch on top of that would just be one more thing to get out of sync with reality.
 
 ---
 
@@ -180,6 +180,7 @@ It does not patch pi's prompt, so it does not. One caveat: it registers a tool n
 
 | Version | What changed |
 |---|---|
+| 0.4.0 | Model whitelist — DeepSeek-only by default, case-insensitive; every other model is left completely untouched. The bootstrap surface is re-aligned with the Web app's Minimal preset: bash description, the editor's null-placeholder bullet, and `oneOf [X, null]` parameter schemas |
 | 0.3.0 | First-request anchoring with automatic sticky release, thinking-style modes + preview, DSML bridge, the official `str_replace_editor`, request dump |
 | 0.2.x | First public releases: minimal persona and the two-tool surface |
 

@@ -1,9 +1,11 @@
 /**
  * Bootstrap / released phase resolution and the tool surface that goes with it.
  *
- * Adapted from pi-dsh-minimal `src/adapter/activation.ts`: the activation gate
- * (model patterns / useOnAllModels) and the persistent-bash swap are dropped —
- * this plugin always activates, and `bash` keeps pi's own implementation.
+ * Adapted from pi-dsh-minimal `src/adapter/activation.ts`: the persistent-bash
+ * swap is dropped — `bash` keeps pi's own implementation — while the model gate
+ * is kept, and defaults to DeepSeek-only (see `models` in the config file). A
+ * model outside the whitelist is forced onto the released surface, which also
+ * hands back any tool the bootstrap had taken away.
  */
 
 import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@earendil-works/pi-coding-agent";
@@ -13,8 +15,8 @@ import { BOOTSTRAP_TOOL_NAMES, restoreTools, sameToolNames, stripOwnedTools } fr
 
 export type Surface = "bootstrap" | "released";
 
-export function desiredSurface(promoted: boolean): Surface {
-	return promoted ? "released" : "bootstrap";
+export function desiredSurface(promoted: boolean, enabled = true): Surface {
+	return enabled && !promoted ? "bootstrap" : "released";
 }
 
 /** Session entries used for promotion scanning (context view when available). */
@@ -49,8 +51,8 @@ export function branchPromoted(ctx: ExtensionContext): boolean {
 }
 
 /** Apply the tool surface that matches `st.promoted`, and report it. */
-export function applySurface(pi: ExtensionAPI, st: SessionState): Surface {
-	const surface = desiredSurface(st.promoted);
+export function applySurface(pi: ExtensionAPI, st: SessionState, enabled = true): Surface {
+	const surface = desiredSurface(st.promoted, enabled);
 	const active = pi.getActiveTools();
 	if (surface === "bootstrap") {
 		if (st.previousTools === undefined) st.previousTools = stripOwnedTools(active);
@@ -72,9 +74,14 @@ export function applySurface(pi: ExtensionAPI, st: SessionState): Surface {
  * Release fires on the first assistant message or the first tool call and stays
  * latched for the rest of the branch.
  */
-export function refreshPromotion(pi: ExtensionAPI, ctx: ExtensionContext, st: SessionState): Surface {
-	if (!st.promoted) {
+export function refreshPromotion(
+	pi: ExtensionAPI,
+	ctx: ExtensionContext,
+	st: SessionState,
+	enabled = true,
+): Surface {
+	if (enabled && !st.promoted) {
 		st.promoted = scanSessionPhase(phaseEntries(ctx)) || branchPromoted(ctx);
 	}
-	return applySurface(pi, st);
+	return applySurface(pi, st, enabled);
 }

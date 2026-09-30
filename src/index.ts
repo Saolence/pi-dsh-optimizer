@@ -17,10 +17,11 @@
  */
 
 import { appendFileSync } from "node:fs";
-import { getAgentDir, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { refreshPromotion, type Surface } from "./adapter/activation.ts";
 import { loadIdentityConfig } from "./adapter/config.ts";
 import { convertDsmlAssistantMessage } from "./adapter/dsml.ts";
+import { modelMatches } from "./adapter/model.ts";
 import { rewriteProviderRequest } from "./adapter/payload-rewrite.ts";
 import { composeReleasedPrompt, minimalPersona } from "./adapter/prompt.ts";
 import { createAdapterState, sessionState } from "./adapter/state.ts";
@@ -42,6 +43,12 @@ function dumpSurface(dump: string, surface: Surface, payload: unknown): void {
 		console.error(`[pi-dsh-optimizer] failed to dump request surface: ${String(error)}`);
 	}
 }
+/** Re-read the config and decide whether this model is ours to touch. */
+function enabledFor(ctx: ExtensionContext): boolean {
+	const { config } = loadIdentityConfig(getAgentDir());
+	return modelMatches(config.models, ctx.model);
+}
+
 
 export default function (pi: ExtensionAPI) {
 	const state = createAdapterState(process.cwd());
@@ -53,13 +60,18 @@ export default function (pi: ExtensionAPI) {
 
 	// ── session lifecycle: rebuild per-session state ────────────────────────
 	pi.on("session_start", async (_event, ctx) => {
-		refreshPromotion(pi, ctx, sessionState(state, ctx.sessionManager.getSessionId()));
+		const st = sessionState(state, ctx.sessionManager.getSessionId());
+		refreshPromotion(pi, ctx, st, enabledFor(ctx));
 	});
 
 	// ── prompt surface: dsh-minimal bootstrap, then full release ────────────
 	pi.on("before_agent_start", async (event, ctx) => {
 		const st = sessionState(state, ctx.sessionManager.getSessionId());
-		refreshPromotion(pi, ctx, st);
+		const enabled = enabledFor(ctx);
+		refreshPromotion(pi, ctx, st, enabled);
+		// Not our model: pi's prompt and its tool surface stay untouched, and the
+		// call above has already handed the catalog back.
+		if (!enabled) return undefined;
 
 		// Bootstrap: the first request must look exactly like the official dsh
 		// `minimal` preset. pi's prompt is wiped on the wire in
@@ -84,26 +96,28 @@ export default function (pi: ExtensionAPI) {
 	// ── release: first assistant message or first tool call ─────────────────
 	pi.on("message_end", async (event, ctx) => {
 		const st = sessionState(state, ctx.sessionManager.getSessionId());
+		const enabled = enabledFor(ctx);
 		// During the bootstrap the model emits dsh-style DSML tool calls as
 		// text; convert them into pi-native calls so the first call runs.
 		let replacement: ReturnType<typeof convertDsmlAssistantMessage>;
-		if (st.promoted === false && event.message.role === "assistant") {
+		if (enabled && st.promoted === false && event.message.role === "assistant") {
 			const activeToolNames = new Set(pi.getActiveTools());
 			replacement = convertDsmlAssistantMessage(
 				event.message,
 				pi.getAllTools().filter((tool) => activeToolNames.has(tool.name)),
 			);
 		}
-		refreshPromotion(pi, ctx, st);
+		refreshPromotion(pi, ctx, st, enabled);
 		return replacement ? { message: replacement } : undefined;
 	});
 
 	// ── the wire: rewrite the payload while the bootstrap is active ─────────
 	pi.on("before_provider_request", async (event, ctx) => {
 		const st = sessionState(state, ctx.sessionManager.getSessionId());
-		refreshPromotion(pi, ctx, st);
+		const enabled = enabledFor(ctx);
+		refreshPromotion(pi, ctx, st, enabled);
 		const dump = dumpPath();
-		if (st.promoted) {
+		if (!enabled || st.promoted) {
 			// Released: the payload goes out untouched, but the surface is still
 			// recorded when the dump is enabled.
 			if (dump) dumpSurface(dump, "released", event.payload);
@@ -123,6 +137,6 @@ export default function (pi: ExtensionAPI) {
 
 	// ── safety net: recompute the phase at the end of every run ─────────────
 	pi.on("agent_end", async (_event, ctx) => {
-		refreshPromotion(pi, ctx, sessionState(state, ctx.sessionManager.getSessionId()));
+		refreshPromotion(pi, ctx, sessionState(state, ctx.sessionManager.getSessionId()), enabledFor(ctx));
 	});
 }

@@ -6,7 +6,7 @@
 >
 > 这个扩展把它被训练过的那一面还回去：官方 `minimal` 的原样开场，然后再把 pi 的东西全部交还。
 
-`pi` 扩展 · 零配置 · 不挑模型 · 41 个测试
+`pi` 扩展 · 零配置 · 默认只认 DeepSeek · 52 个测试
 
 ---
 
@@ -90,7 +90,7 @@ DeepSeek 的思维链有个标志性的版本——**用叙述代替行动**：
 pi install npm:pi-dsh-optimizer
 ```
 
-重启 pi，完事。不用声明模型，不用配 provider，不用维护白名单——只要 pi 在驱动一个模型，每个会话的第一条请求就会被锚定。
+重启 pi，完事。不用声明模型，不用配 provider——DeepSeek 开箱即中，其他模型完全不受影响，而每个会话的第一条请求都会被锚定。
 
 ---
 
@@ -103,7 +103,7 @@ pi install npm:pi-dsh-optimizer
 - **DSML 桥** —— 模型把工具调用当文本吐出来时，该调用照样执行。零配置。
 - **可自查** —— `PI_DSH_OPTIMIZER_DUMP=1` 把真正出网的请求落到磁盘，锚定有没有生效自己验。
 - **不破坏** —— 不改写、不回滚、不留痕迹。锚定是"某一条请求的属性"，不是"你这个会话的状态"。
-- **不挑模型** —— 任何模型都生效。DeepSeek 收益最大（见上），其他模型只是开场更轻。
+- **默认只认 DeepSeek** —— 由 `models` 白名单决定。DeepSeek 大小写无关地命中（`*deepseek*`，provider 也算）；其他模型完全不受影响。写 `"models": []` 则对所有模型生效。
 
 ---
 
@@ -112,11 +112,11 @@ pi install npm:pi-dsh-optimizer
 | 东西 | 作用 |
 |---|---|
 | `/dsh-optimizer` | 菜单：思维风格、模式、预览、重置、路径 |
-| `pi_dsh_status` | 工具——打印 `phase=` · `model=` · `surface=` · `tools=` |
+| `pi_dsh_status` | 工具——打印 `phase=` · `model=` · `active=` · `models=` · `surface=` · `tools=` |
 | `PI_DSH_OPTIMIZER_DUMP=1` | 导出出网请求用于自查 |
-| `~/.pi/agent/pi-dsh-optimizer.json` | `{ "mode": "replace", "text": "…" }` |
+| `~/.pi/agent/pi-dsh-optimizer.json` | `{ "mode": "replace", "text": "…", "models": ["*deepseek*"] }` |
 
-配置里**故意没有 `enabled` 开关**：要停就卸载包。多一个开关，就多一个和事实不同步的地方。
+配置里**故意没有 `enabled` 开关**：`models` 白名单**就是**开关，大小写无关。不在白名单里的模型完全不受影响——pi 的提示词原样发出、工具表一个不动；写 `"models": []`（或 `["*"]`）则对所有模型生效。在它上面再加一个开关，只会多一个和事实不同步的地方。
 
 ---
 
@@ -181,6 +181,7 @@ pi install npm:pi-dsh-optimizer
 
 | 版本 | 变化 |
 |---|---|
+| 0.4.0 | 模型白名单——默认只认 DeepSeek，大小写无关；其他模型完全不受影响。首轮表面按 Web app 的 Minimal 预设重新对齐：bash 描述、编辑器的 null 占位说明、`oneOf [X, null]` 参数 schema |
 | 0.3.0 | 首轮锚定 + 自动粘性解除、思维风格三种模式与预览、DSML 桥、官方 `str_replace_editor`、出网请求 dump |
 | 0.2.x | 最早的公开版本：minimal persona 与两工具表面 |
 

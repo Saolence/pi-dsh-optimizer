@@ -136,7 +136,7 @@ test("editing the text saves it and keeps the mode", { skip }, async () => {
 	});
 	await runCommand(ctx);
 
-	assert.deepEqual(readConfig(agentDir), { mode: "replace", text: "MY OWN IDENTITY\nsecond line" });
+	assert.deepEqual(readConfig(agentDir), { mode: "replace", text: "MY OWN IDENTITY\nsecond line", models: DEFAULT_IDENTITY_CONFIG.models });
 	assert.ok(notified.some((entry) => entry.message.includes("Identity text saved")));
 });
 
@@ -149,7 +149,7 @@ test("a text edit and a mode change both persist, in that order", { skip }, asyn
 	});
 	await runCommand(ctx);
 
-	assert.deepEqual(readConfig(agentDir), { mode: "remove", text: "KEEP THIS TEXT" });
+	assert.deepEqual(readConfig(agentDir), { mode: "remove", text: "KEEP THIS TEXT", models: DEFAULT_IDENTITY_CONFIG.models });
 });
 
 test("the mode dialog writes the chosen mode and leaves the text alone", { skip }, async () => {

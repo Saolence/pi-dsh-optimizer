@@ -7,12 +7,14 @@
  *
  *     {
  *       "mode": "replace",   // keep | remove | replace
- *       "text": "..."        // what `replace` swaps pi's identity sentence for
+ *       "text": "...",       // what `replace` swaps pi's identity sentence for
+ *       "models": ["*deepseek*"]   // default: DeepSeek only, case-insensitive
  *     }
  *
- * There is deliberately no `enabled` flag: the released prompt is built by the
- * identity handling alone, so "off" and `mode: "keep"` would be the same state
- * under two names.
+ * There is deliberately no `enabled` flag: the `models` whitelist is the on/off
+ * switch — a model that does not match is left completely untouched — and the
+ * released prompt is built by the identity handling alone, so "off" and
+ * `mode: "keep"` would be the same state under two names.
  *
  * This module is pure on purpose — it takes the agent directory as an argument
  * instead of importing pi's `getAgentDir()`, so the plain `node --test` suite
@@ -31,11 +33,18 @@ export interface IdentityConfig {
 	mode: IdentityMode;
 	/** The replacement text. Empty under `replace` behaves as `remove`. */
 	text: string;
+	/**
+	 * Which models the plugin is allowed to touch, matched case-insensitively
+	 * against the model id, its display name and its provider. Default: DeepSeek
+	 * only. An empty list — or a bare `*` — means every model.
+	 */
+	models: string[];
 }
 
 export const DEFAULT_IDENTITY_CONFIG: IdentityConfig = {
 	mode: "replace",
 	text: IDENTITY_TEXT,
+	models: ["*deepseek*"],
 };
 
 export function configFilePath(agentDir: string): string {
@@ -52,6 +61,9 @@ export function normalizeIdentityConfig(raw: unknown): IdentityConfig {
 	return {
 		mode: isIdentityMode(source.mode) ? source.mode : DEFAULT_IDENTITY_CONFIG.mode,
 		text: typeof source.text === "string" ? source.text : DEFAULT_IDENTITY_CONFIG.text,
+		models: Array.isArray(source.models)
+			? source.models.filter((value): value is string => typeof value === "string")
+			: DEFAULT_IDENTITY_CONFIG.models,
 	};
 }
 
@@ -81,5 +93,9 @@ export function loadIdentityConfig(agentDir: string): LoadedIdentityConfig {
 export function saveIdentityConfig(agentDir: string, config: IdentityConfig): void {
 	const path = configFilePath(agentDir);
 	mkdirSync(agentDir, { recursive: true });
-	writeFileSync(path, `${JSON.stringify({ mode: config.mode, text: config.text }, null, 2)}\n`, "utf-8");
+	writeFileSync(
+		path,
+		`${JSON.stringify({ mode: config.mode, text: config.text, models: config.models }, null, 2)}\n`,
+		"utf-8",
+	);
 }

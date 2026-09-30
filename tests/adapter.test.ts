@@ -18,7 +18,14 @@ import {
 	minimalPersona,
 } from "../src/adapter/prompt.ts";
 import { BOOTSTRAP_TOOL_NAMES, DEFAULT_TOOL_NAMES, restoreTools, stripOwnedTools } from "../src/adapter/tool-set.ts";
-import { DSH_MINIMAL_TOOLS, DSH_MINIMAL_TOOL_NAMES, MINIMAL_PROMPT } from "../src/dsh/official.ts";
+import {
+	DSH_MINIMAL_TOOLS,
+	DSH_MINIMAL_TOOL_NAMES,
+	DSH_STR_REPLACE_EDITOR_PARAMETERS,
+	MINIMAL_BASH_DESCRIPTION,
+	MINIMAL_PROMPT,
+	STR_REPLACE_EDITOR_DESCRIPTION,
+} from "../src/dsh/official.ts";
 
 const PERSONA = MINIMAL_PROMPT;
 const REWRITE = { persona: PERSONA, rewriteTools: true };
@@ -28,6 +35,32 @@ const REWRITE = { persona: PERSONA, rewriteTools: true };
 test("the bootstrap persona is the official dsh minimal one-liner", () => {
 	assert.equal(MINIMAL_PROMPT, "You are a helpful software engineer assistant.");
 	assert.equal(minimalPersona(), MINIMAL_PROMPT);
+});
+
+test("the bash description is the Web app's minimal one, not the SDK snapshot's", () => {
+	assert.ok(
+		MINIMAL_BASH_DESCRIPTION.includes(
+			"* Network access depends on the task environment. Prefer configured mirrors/proxies when they are available.",
+		),
+	);
+	assert.ok(!MINIMAL_BASH_DESCRIPTION.includes("mirror of common linux"));
+	assert.ok(!MINIMAL_BASH_DESCRIPTION.includes("don't have access to the internet"));
+});
+
+test("the editor declaration keeps dsh's null placeholders", () => {
+	const { properties } = DSH_STR_REPLACE_EDITOR_PARAMETERS;
+	assert.equal(properties.file_text.oneOf.length, 2);
+	assert.equal(properties.insert_line.oneOf.length, 2);
+	assert.equal(properties.new_str.oneOf.length, 2);
+	assert.equal(properties.old_str.oneOf.length, 2);
+	assert.equal(properties.view_range.oneOf.length, 2);
+	assert.equal("oneOf" in properties.command, false);
+	assert.equal("oneOf" in properties.path, false);
+	assert.ok(
+		STR_REPLACE_EDITOR_DESCRIPTION.includes(
+			"* A null placeholder for a parameter unused by the selected command is treated as omitted.",
+		),
+	);
 });
 
 test("the bootstrap tool catalog is bash + str_replace_editor", () => {
@@ -211,9 +244,9 @@ test("a missing config file yields the defaults and reports no error", () => {
 	assert.deepEqual(loaded.config, DEFAULT_IDENTITY_CONFIG);
 });
 
-test("saving round-trips mode and text and creates a missing agent directory", () => {
+test("saving round-trips mode, text and the model whitelist and creates a missing agent directory", () => {
 	const dir = join(tempAgentDir(), "nested", "agent");
-	const custom = { mode: "remove" as const, text: "CUSTOM IDENTITY\nsecond line" };
+	const custom = { mode: "remove" as const, text: "CUSTOM IDENTITY\nsecond line", models: ["qwen*"] };
 	saveIdentityConfig(dir, custom);
 	assert.deepEqual(loadIdentityConfig(dir).config, custom);
 });

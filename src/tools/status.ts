@@ -3,9 +3,11 @@
  * currently sees.
  */
 
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { desiredSurface } from "../adapter/activation.ts";
+import { loadIdentityConfig } from "../adapter/config.ts";
+import { modelMatches } from "../adapter/model.ts";
 import { sessionState, type AdapterState } from "../adapter/state.ts";
 
 export function registerStatusTool(pi: ExtensionAPI, state: AdapterState): void {
@@ -17,10 +19,14 @@ export function registerStatusTool(pi: ExtensionAPI, state: AdapterState): void 
 		parameters: Type.Object({}),
 		async execute(_toolCallId, _params, _signal, _onUpdate, ctx) {
 			const st = sessionState(state, ctx.sessionManager.getSessionId());
+			const { config } = loadIdentityConfig(getAgentDir());
+			const active = modelMatches(config.models, ctx.model);
 			const lines = [
 				`phase=${st.promoted ? "released" : "bootstrap"}`,
 				`model=${ctx.model?.id ?? "unknown"}`,
-				`surface=${desiredSurface(st.promoted)}`,
+				`active=${active ? "yes" : "no"}`,
+				`models=${config.models.join(", ") || "(all models)"}`,
+				`surface=${desiredSurface(st.promoted, active)}`,
 				`tools=[${pi.getActiveTools().join(", ")}]`,
 			];
 			return {
