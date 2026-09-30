@@ -1,4 +1,15 @@
+# dependencies
 node_modules/
-dist/
+
+# local packaging / logs
+*.tgz
+package-lock.json
 *.log
+
+# macOS
 .DS_Store
+
+# local-only backups. `backups/tsconfig.json.v1` is a verbatim copy of the
+# original tsconfig and still contains a local absolute path of this machine,
+# so it must not be pushed. npm never publishes it either (see `files`).
+backups/

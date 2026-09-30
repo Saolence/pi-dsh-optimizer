@@ -1,372 +1,187 @@
 # pi-dsh-optimizer
 
-> **The "auto-shifter" for pi** — reads what you say, picks the best way for the
-> AI to work (a "gear"), and switches to it automatically. No manual
-> configuration needed.
+**The official dsh `minimal` first request for pi — plus a chain-of-thought style that stops the "let me…" loop.**
 
-[![npm version](https://img.shields.io/npm/v/pi-dsh-optimizer.svg)](https://www.npmjs.com/package/pi-dsh-optimizer)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Pi package](https://img.shields.io/badge/pi-package-blue.svg)](https://pi.dev/packages/pi-dsh-optimizer)
+> DeepSeek's models don't underperform in pi because pi is weak. They underperform because pi hands them a prompt they were never trained on.
+>
+> This extension gives the model the opening it *was* trained on — the official `minimal` surface, verbatim — then hands everything back.
 
-Ported from [dsh-router-standard](https://github.com/yjh051108/dsh-router-standard)
-(routing preset of the [dsh-routing-suite](https://github.com/yjh051108/dsh-routing-suite)).
+`pi` extension · zero config · no model whitelist · 41 tests
 
 ---
 
-## Table of contents
+## The 33-point evidence
 
-- [Quick start](#quick-start)
-- [What it does (30-second read)](#what-it-does-30-second-read)
-- [The four modes](#the-four-modes)
-- [Measured results](#measured-results-same-model-different-gears)
-- [How it works (deep dive)](#how-it-works-deep-dive)
-- [Configuration reference](#configuration-reference)
-- [Troubleshooting / FAQ](#troubleshooting--faq)
-- [Changelog](#changelog)
-- [Development](#development)
-- [File structure](#file-structure)
-- [Evidence & attribution](#evidence--attribution)
-- [License](#license)
+Same model. Same benchmark. Different wrapper.
+
+| Score | Harness |
+|---|---|
+| **87.9** | official DeepSeek Harness |
+| **54.68** | Terminus 2 (third-party rerun) |
+
+DeepSeek V4 Pro (0813) on Terminal-Bench 2.1. A 33-point swing that started out as a "did DeepSeek cheat" fight and ended as something far more useful: proof that **an agent score without its harness is a number without units**.
+
+Then the part that kills the easy explanation. The same spread shows up *inside* DeepSeek Harness, across its own presets:
+
+| Preset | Score |
+|---|---|
+| **minimal** — 2 tools | **99 / 96** |
+| standard | 91 |
+| PTC (code) | 92 |
+
+If V4 Pro had simply memorised "its own house", those three numbers would agree. They don't. The variable is the **starting prompt and the tool schema** — the model behaves best when the harness looks like the one it was post-trained against.
+
+And the experiment that makes this extension inevitable:
+
+> Start a session with minimal mode's prompt and its two tools. After the very first tool call, restore the **full 25-tool set** and let the run continue normally. The score barely moves: **98 / 99**.
+>
+> *What the model does in the first turn matters far more than what tools are nominally available for the rest of the session.*
+
+That is the whole idea. This extension is that experiment, applied to pi, automatically.
 
 ---
 
-## Quick start
+## What it does
 
-Install from GitHub or npm:
+**The first request of a session is rewritten into the official dsh `minimal` surface.**
+
+| | First request | From the next turn on |
+|---|---|---|
+| System prompt | `You are a helpful software engineer assistant.` — 46 chars, verbatim | pi's full prompt |
+| Tools | `bash` + `str_replace_editor` | pi's whole catalogue |
+| Pi's prompt sections | none of them | all of them |
+| Thinking style | model default | your choice (default: the `we need to…` block) |
+
+**Then it gets out of the way.** The moment the session has produced a real turn, the anchor is released — permanently. A released session stays released across compaction, `--continue`, and forks. No state to store, nothing to switch off, nothing to lose.
+
+Nothing else about pi changes. Your session files, pi's tool registry, and the UI are untouched: only the request that leaves pi is rewritten.
+
+---
+
+## The other problem: the "Let me…" loop
+
+Reasoning models loop. It is a well-documented failure mode: overthinking has its own research literature, and "keep thinking steps minimal" is standard advice for thinking models.
+
+DeepSeek's traces have a signature version of it — narration instead of action:
+
+> *Let me… Let me check… Let me think about that… Let me…*
+
+Same plan, restated, again and again, while nothing moves.
+
+So the release step also swaps pi's official identity sentence for a short, strict **`we need to…`** block: every step is a concrete action, first-person plural, one step per sentence, with modals (`I'll` · `I can` · `I should` · `I will`) carrying the next move. Decisions only — no commentary, no restating.
+
+In practice: shorter thinking, fewer restarts, less filler before the first tool call.
+
+### Tune it or delete it — `/dsh-optimizer`
+
+| Menu item | What it does |
+|---|---|
+| **text** | replace the identity with your own block |
+| **mode** | `replace` (default) · `remove` (drop the identity sentence, add nothing) · `keep` (leave pi's wording alone) |
+| **preview** | read the exact released prompt before you commit |
+| **reset** / **path** | back to defaults / open the config file |
+
+---
+
+## Install
 
 ```bash
-# GitHub (recommended — always the latest commit)
-pi install git:github.com/Saolence/pi-dsh-optimizer
-
-# or npm (published releases)
 pi install npm:pi-dsh-optimizer
 ```
 
-That's it. The extension registers 3 tools, injects the right persona, and
-routes each session automatically. Verify it's live with:
-
-```
-pi_dsh_status
-```
-
-You should see something like `mode=weak (band=weak)` on a normal chat session,
-with `lang=en` or `lang=zh` depending on your configuration.
+Restart pi. Done. No model to declare, no provider to configure, no whitelist to maintain — if pi is driving a model, the first request of each session is anchored.
 
 ---
 
-## What it does (30-second read)
+## Features
 
-You talk; it decides whether you're trying to **build** or **fix**, then shifts
-the AI into the matching gear:
+- **Anchored opening** — the dsh `minimal` persona and its two official tools, verbatim, on the request that actually reaches the model.
+- **Automatic, sticky release** — pi's full prompt and tool catalogue return after the session's first real turn, and stay returned.
+- **Swappable thinking style** — `we need to…` by default, three modes, live preview.
+- **Ships the official `str_replace_editor`** — the same two-tool surface dsh `minimal` uses, so the anchor isn't a bluff.
+- **DSML bridge** — when the model leaks a tool call as text instead of calling it, the call still runs. Zero config.
+- **Auditable** — `PI_DSH_OPTIMIZER_DUMP=1` writes the real outgoing request to disk, so you can verify the anchor yourself.
+- **Non-destructive** — nothing is patched, patched back, or left in a modified state. The anchor is a property of one request, not of your session.
+- **No model gate** — every model works. DeepSeek gains the most (see above); others simply get a leaner first turn.
 
-| You say | Gear | What the AI does |
-|---|---|---|
-| "make me a website / write a script" | 🚀 react (doer) | writes code and runs it, minimal talk |
-| "fix this bug / debug this error" | 🔍 spec (planner) | reads code first, thinks, then edits |
-| vague / chit-chat / anything else | 🤔 weak (self-route) | decides for itself, every message |
+---
 
-### It does 4 things
+## Commands & config
 
-1. **Swaps persona** — per-gear work style injected at the very front of the
-   AI's system prompt (primacy effect: leading instructions get the strongest
-   model attention, and they form a stable cache prefix across turns).
-2. **Starts narrow** — the first turn exposes only core tools
-   (`read`, `write`, `edit` + `bash`), so a huge tool catalog can't distract.
-3. **Opens up after round one** — after the first assistant turn completes
-   (whether or not a tool was called), the full catalog unlocks and the
-   router steps away.
-4. **State survives** — the gear is derived from the session, so reload and
-   resume keep it. Overrides persist per session; config choices persist to
-   `~/.pi/agent/pi-dsh-optimizer.json`.
-
-### The 2 manual tools
-
-| Tool | What it does | How to call |
-|---|---|---|
-| `pi_dsh_status` | see the current gear, band, persona, language, override state | no arguments |
-| `pi_dsh_mode` | shift gears by hand | `spec` / `react` / `weak` / `mixed`, a number, or `auto` to restore |
-
-> Numbers are PERCENT (0-100): `100` = react, `1` = 0.01 (near spec). Easiest
-> to just pass names: `spec` / `react` / `weak` / `mixed`.
-
-### The 2 slash commands
-
-| Command | What it does |
+| Thing | What it does |
 |---|---|
-| `/pi-dsh-lang` | show / switch the injected persona language (`zh` / `en`), persisted |
-| `/pi-dsh-identity` | show / control the official pi identity sentence (`keep` / `remove` / `set <text>`), persisted |
-| `/pi-dsh-guide` | show / switch the weak-mode near-field routing guide (`on` / `off`), persisted |
+| `/dsh-optimizer` | menu: thinking style, mode, preview, reset, path |
+| `pi_dsh_status` | tool — prints `phase=`, `model=`, `surface=`, `tools=` |
+| `PI_DSH_OPTIMIZER_DUMP=1` | dump outgoing requests for verification |
+| `~/.pi/agent/pi-dsh-optimizer.json` | `{ "mode": "replace", "text": "…" }` |
+
+There is deliberately **no `enabled` flag**: uninstall the package to turn it off. A settings switch is one more thing to get out of sync with reality.
 
 ---
 
-## The four modes
+## FAQ
 
-Think of a car's gears:
+**Does this only work with DeepSeek?**
+No. The preset it ports is what DeepSeek's agent training distribution looks like, so DeepSeek gains the most. Every other model just gets a leaner first request.
 
-| Mode | Alias | When | Tools | Tests |
-|---|---|---|---|---|
-| `spec` | planner | fix bugs, debug, refactor | read-first | normal |
-| `react` | doer | build from scratch, scripts | write-first | suppressed |
-| `mixed` | mixed | ⚠️ avoid (unstable transition band) | union | light |
-| `weak` | self-route (default) | not sure | write-first | light |
+**Do I lose pi's rules, skills, and project context?**
+For the first request only — that is the point. They return from the next turn on.
 
-**Why no fine-tuning?** Measured on real models: behavior along the react↔spec
-axis collapses into THREE stable regions, not a continuum — spec `[0, 0.15]`,
-a transition band `[0.2, 0.45]` (erratic, avoid), and react `[0.5, 1.0]`. The
-router only ever picks stable gears and deliberately stays out of the trap zone.
+**Is it slow?**
+It does less work than pi's normal path: 46 characters of prompt and two tool schemas instead of tens of kilobytes of prompt and dozens of schemas.
 
-**Default is `weak`** — most chats use it; the AI decides for itself, and you
-barely notice the plugin exists.
+**Is the anchored request really the official one?**
+Yes — the persona string and both tool schemas are copied from the official `minimal` preset. Turn on the dump and diff it.
 
----
+**I use standard / PTC mode in DSH. What then?**
+This extension ports the `minimal` opening specifically. That is the one the numbers favour.
 
-## Measured results (same model, different gears)
+**Does it help prompt caching?**
+It gives DeepSeek's prefix cache the shape it likes: a tiny, stable opening and a stable released prefix. It is not a caching feature.
 
-Running the SAME model on the SAME task, the four gears produce visibly
-different behavior:
-
-**Simple task (fix a dedupe bug) — all got it right, differently:**
-
-| Gear | Opening move | Flavor |
-|---|---|---|
-| spec | analyze first | most thorough explanation |
-| react | fix first | code-first, terse |
-| mixed | one-line diagnosis | in-between |
-| weak | conclusion first | fullest walkthrough |
-
-**Complex task (review a system's architecture) — differences amplified:**
-
-| Gear | Focus | Standout finding |
-|---|---|---|
-| spec | deepest engineering review | soft-delete + non-unique id → audit hazard |
-| react | pragmatic, prioritized | state-machine reject-boundary gap |
-| mixed | broadest coverage | single-process availability + no concurrency guard on fields |
-| weak | compliance consultant lens | plaintext data, no tamper-proof logs, no rule engine |
-
-All four independently converged on the same top-3 risks (default key + open
-CORS, SQLite concurrency, hand-rolled migrations) — the difference is only in
-**how they phrase and prioritize**.
+**Will it fight my other extensions?**
+It does not patch pi's prompt, so it does not. One caveat: it registers a tool named `str_replace_editor`, which is the official name — if another extension registers the same name, pi keeps one and silently drops the other.
 
 ---
 
-## How it works (deep dive)
+## Compatibility
 
-### 1. Task classification
-
-The session reads your **first user message** and classifies it by keyword
-counting:
-
-- More doer words than planner words → `react` (1)
-- More planner words than doer words → `spec` (0)
-- Roughly even, or none → `weak` (model routes itself)
-
-Doer keywords (non-exhaustive): `create`, `build`, `develop`, `generate`,
-`implement`, `make a`, `new project`, `写一个`, `创建`, `开发`, `生成`, `构建`,
-`搭建`, `实现`, `做一个`, `脚本`, `工具`, `应用`, …
-
-Planner keywords: `fix`, `debug`, `refactor`, `maintain`, `repair`, `broken`,
-`为什么`, `修复`, `调试`, `重构`, `排查`, `报错`, `崩溃`, `迁移`, `升级`, …
-
-Ambiguous or empty input → `weak`. The classification only uses the FIRST user
-message of the session, so it's stable across reloads and resumes.
-
-### 2. Persona injection (`before_agent_start`)
-
-The persona is placed **first**, before pi's own system prompt, because:
-
-- Leading instructions get the strongest model attention (primacy effect).
-- It forms a stable prefix for prompt caching across turns.
-
-Personas are selected by mode × language × model family:
-
-| Mode | Pro | Flash |
-|---|---|---|
-| spec | "software engineer assistant" | same |
-| react | hands-on doer | same |
-| weak | spec sentence + few-shot routing instruction (w6c, +4.67, P24) | neutral + classify + recall/anti-runaway anchors (w7, +5.67, P11) |
-
-Weak mode is deliberately **model-specific** — measurements show the optimal
-weak persona differs between Pro and Flash class models. Nothing to configure.
-
-### 3. First-turn tool narrowing
-
-On the first request the active tool set is narrowed to core tools
-(`read`, `write`, `edit`, `bash`) regardless of mode. After your **first
-durable tool call**, the full catalog is unlocked and the router steps away.
-This prevents a huge tool surface from distracting the model in the first,
-most impressionable turn.
-
-### 4. Near-field routing guidance (`context` event, weak mode only)
-
-In weak mode, before each LLM call the extension quietly inserts a short
-"router" guide **right after your last message** (near-field = strongest
-attention). Two variants:
-
-- **Simple task** → short guide:
-  `Router: classify this task (build or fix) now…`
-- **Complex task** (long message or architectural keywords) → deep guide:
-  `Router: …Think deeply about the architecture, edge cases, and integration
-  points. Don't burn reasoning on the environment. End each reasoning block
-  with a decision or an information need.`
-
-A task counts as *complex* when its text exceeds 120 characters or matches
-architecture-ish keywords (`architecture`, `refactor`, `design`, `system`,
-`analyze`, `重构`, `架构`, `分析`, …).
-
-Injection is **idempotent**: it skips messages that are already guides and
-never stacks a second guide behind the same user message — important because
-the `context` event fires before every LLM call in a turn (tool loops included).
-Only weak mode gets this nudge; strong modes (spec/react) don't need it.
-
-### 5. Official pi identity handling
-
-pi's default template opens with "You are an expert coding assistant operating
-inside pi...". The router can remove, keep, or replace it (default: **remove** —
-your persona already defines who you are):
-
-```
-/pi-dsh-identity              # show current mode
-/pi-dsh-identity remove       # strip pi's official identity sentence (default)
-/pi-dsh-identity keep         # keep pi's original sentence
-/pi-dsh-identity set <text>   # replace it with your own identity sentence
-```
-
-Removal is tolerant: exact-match regex with fallback, so if pi ever rewords
-the sentence the prompt is left untouched (no harm).
-
-### 6. Persona language
-
-English by default. Switch permanently (persisted, survives restarts):
-
-```
-/pi-dsh-lang        # show current language
-/pi-dsh-lang zh     # switch to Chinese persona
-/pi-dsh-lang en     # switch back to English persona
-```
-
-Precedence: **config file > `PI_DSH_LANG` env var > default (en)**. Both
-languages carry identical gear semantics (build/fix routing, model-specific
-weak personas). `pi_dsh_status` shows the active language (`lang=en` / `lang=zh`).
-
-### Mapping from dsh-router-standard
-
-| dsh mechanism | pi mechanism |
+| | |
 |---|---|
-| `system-prompt/assemble` (persona section) | `before_agent_start` (persona) + `setActiveTools` (first-turn tools) |
-| `session/event` near-field guidance | `context` event (inserted after the last user message) |
-| `tools.register` (`dev_router_*`) | `pi.registerTool` (`pi_dsh_*`) |
-| `session.events` derivation | `ctx.sessionManager` branch scan |
+| pi | `@earendil-works/pi-coding-agent` |
+| Models | any — DeepSeek V4 Pro / V4 Flash / V4.1 gain the most |
+| Related setups | DeepSeek Harness (DSH), the DSH `minimal` preset, pi + DeepSeek |
 
 ---
 
-## Configuration reference
+## Honest caveats
 
-| Setting | Where | Values | Default |
-|---|---|---|---|
-| Persona language | `/pi-dsh-lang`, config file, or `PI_DSH_LANG` | `zh` / `en` | `en` |
-| Identity handling | `/pi-dsh-identity`, config file, or `PI_DSH_IDENTITY` | `keep` / `remove` / `replace` | `remove` |
-| Session mode override | `pi_dsh_mode` (per-session, not persisted) | `spec` / `react` / `weak` / `mixed`, 0-100, `auto` | auto-classified |
-| Near-field guide | `/pi-dsh-guide`, config file | `on` / `off` | `on` |
-
-Config file location: `~/.pi/agent/pi-dsh-optimizer.json`:
-
-```json
-{
-  "lang": "zh",
-  "identity": "remove"
-}
-```
+- The 33-point gap and the 99 / 91 / 92 preset spread are **community reports**, not an official DeepSeek statement. Sources below — read them rather than trusting this README.
+- The first-turn anchoring experiment was run *inside* DSH. This extension ports it to pi, so your numbers will differ.
+- The `we need to…` block is a prompt-style intervention. It changes how reasoning reads and tends to shorten it; it is not a switch that guarantees a shorter trace.
+- The DSML bridge is small and has no dedicated test coverage. If it meets a leaked call it cannot parse, it leaves your stream untouched.
 
 ---
 
-## Troubleshooting / FAQ
+## Sources & credits
 
-**`pi_dsh_status` says `mode=spec` but I wanted weak.**
-The gear is derived from your FIRST user message. Start a new session, or force
-it with `pi_dsh_mode weak` (takes effect on the next request).
-
-**The guide message ("Router: …") isn't visible in my chat history.**
-That's expected — the `context` event injects into the in-memory message list
-for that LLM call only; it is not persisted to the session log. It's a nudge,
-not a transcript entry.
-
-**I see `lang=en` but I want Chinese.**
-Run `/pi-dsh-lang zh`. The change is persisted and applies from the next
-request. (Config file beats the `PI_DSH_LANG` env var.)
-
-**Why did a short message get the DEEP guide?**
-The complexity heuristic also matches architectural keywords, and those can
-lurk inside words (e.g. `pi-dsh-optimizer` contains `optimize`). Harmless —
-worst case the model thinks a bit deeper than needed.
-
-**Does this work with `/compact` or session resume?**
-Yes — mode is re-derived from the first user message of the branch, so
-compaction and resume keep the same gear.
+- DeepSeek Harness developer preview — the official preset list (Standard / PTC / Minimal / Creator): <https://deepseek.com/harness/en/>
+- **Why DeepSeek Harness Benchmark Scores Differ So Wildly** — the 87.9 vs 54.68 gap, the 99 / 91 / 92 preset spread, and the first-turn anchoring experiment: <https://findharness.com/blog/why-deepseek-harness-benchmark-scores-differ>
+- **DeepSeek Pro Looks Brilliant in Minimal Mode. That Is Also the Problem** — the counter-argument, worth reading: <https://www.remio.ai/post/deepseek-pro-looks-brilliant-in-minimal-mode-that-is-also-the-problem>
+- **Pi Agent + DeepSeek: Why the Harness Can Matter More Than the Model** — the "harness multiplier", and why minimal prompts suit models that were never trained on a large proprietary harness: <https://docs.bswen.com/blog/2026-09-01-pi-agent-deepseek-harness-multiplier/>
+- **Wait, Wait, Wait… Why Do Reasoning Models Loop?** <https://arxiv.org/html/2512.12895v1>
+- **Stop Spinning Wheels: Mitigating LLM Overthinking via Mining Patterns for Early Reasoning Exit** <https://arxiv.org/html/2508.17627v1>
+- Community analyses behind the numbers: `@shmidtqq` (amplified by `@ST4RHaze`) and the translated Chinese write-up by `@ZhihuFrontier`, *"Did DeepSeek V4 Pro overfit to its own harness? The real issue might be interface sensitivity."*
+- The `minimal` preset itself: `apps/cli/config/agent-presets/minimal/agent.cordis.yml` in the DSH repository.
 
 ---
 
 ## Changelog
 
-**0.1.6** — fix: GUIDE injection never actually fired. `extractText` was called
-with `m.content` (array/string) but expected `{content}` — it always returned
-`""`, so the near-field guide was never inserted in weak mode. Now tolerates
-every pi content shape, and injection is idempotent (skips already-injected
-guides; no stacking across multi-tool turns). 28 unit tests.
-
-**0.1.5** — localize near-field GUIDE (zh/en via `PI_DSH_LANG`) + align anchor
-tool name to pi (`find`, not `glob`).
-
-**0.1.4** — `/pi-dsh-identity` command to remove/replace pi's official identity
-sentence.
-
-**0.1.3** — `/pi-dsh-lang` slash command for persistent zh/en persona switch.
-
-**0.1.2** — bilingual persona injection via `PI_DSH_LANG` (zh/en), persona-first
-ordering.
-
-**0.1.1** — switch install instructions to GitHub/npm (`pi install`) method.
-
----
-
-## Development
-
-```sh
-node --test tests.mjs   # 28 tests: classification, bands, personas, parseMode regressions, extractText shapes, guide detection, helpers
-tsc --noEmit            # type check
-```
-
-Note: run tests from the source checkout — Node 26 refuses type-stripping
-under `node_modules`, so running them from an installed copy fails with
-`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`.
-
-## File structure
-
-```
-pi-dsh-optimizer/
-├── package.json     pi manifest (npm/gallery publishing)
-├── index.ts         extension entry: lifecycle hooks + 3 registered tools + 2 slash commands
-├── router-core.ts   pure routing logic (zero pi deps, unit-testable)
-├── tests.mjs        unit tests (28)
-├── tsconfig.json    type-check config
-├── README.md        this file (English)
-└── README.zh-CN.md  this file (Chinese)
-```
-
----
-
-## Evidence & attribution
-
-- Upstream theory + experiments: [dsh-router-standard](https://github.com/yjh051108/dsh-router-standard)
-  (`docs/paper.md`, `docs/experiments.md`), based on
-  [dsh-routing-suite](https://github.com/yjh051108/dsh-routing-suite) measurements.
-- Project2 evaluation data: [xiaobright/modeltest](https://github.com/xiaobright/modeltest)
-  (V4.1b, frozen) — minimal 99/96, standard 91, PTC 92, anchored-standard 98/99.
-- Two-phase anchoring preset: [xiaobright/dsh-anchored-standard](https://github.com/xiaobright/dsh-anchored-standard)
-  (MIT). The first-turn anchoring is a plugin-level port of its
-  `tool-bootstrap` mechanism.
-- DeepSeek Harness official `minimal` preset snapshot
-  (`sends the exact RL prompt and schemas` test) — the spec persona and the
-  RL-alignment claim.
+| Version | What changed |
+|---|---|
+| 0.3.0 | First-request anchoring with automatic sticky release, thinking-style modes + preview, DSML bridge, the official `str_replace_editor`, request dump |
+| 0.2.x | First public releases: minimal persona and the two-tool surface |
 
 ---
 

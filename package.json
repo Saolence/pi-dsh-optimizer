@@ -1,38 +1,87 @@
 {
   "name": "pi-dsh-optimizer",
-  "version": "0.2.6",
-  "description": "The auto-shifter for pi: task-aware reasoning-mode router. Ported from dsh-router-standard — classifies each task and routes the session to spec (planner) / react (doer) / weak (self-route), with persona + first-turn tool injection and two tuning tools.",
+  "version": "0.3.0",
+  "description": "The official dsh `minimal` first request for pi. DeepSeek was post-trained on a minimal harness, so the first request carries only the dsh minimal persona and its two tools (bash, str_replace_editor); afterwards pi's full prompt returns with its official identity sentence swapped for a configurable `we need to` chain-of-thought block that stops the \"let me…\" reasoning loop.",
   "keywords": [
     "pi-package",
     "pi",
-    "extension",
-    "router",
-    "reasoning-mode",
-    "dsh-router-standard",
-    "spec",
-    "react",
-    "weak"
+    "pi-extension",
+    "pi-plugin",
+    "pi-coding-agent",
+    "deepseek",
+    "deepseek-v4",
+    "deepseek-v4-pro",
+    "deepseek-v4-flash",
+    "deepseek-v4.1",
+    "deepseek-harness",
+    "deepseek-api",
+    "dsh",
+    "dsh-minimal",
+    "minimal-mode",
+    "minimal-preset",
+    "agent-preset",
+    "coding-agent",
+    "agent-harness",
+    "harness",
+    "harness-multiplier",
+    "system-prompt",
+    "prompt-optimization",
+    "prompt-engineering",
+    "chain-of-thought",
+    "reasoning-loop",
+    "overthinking",
+    "let-me-loop",
+    "we-need-to",
+    "context-optimization",
+    "first-request",
+    "prompt-cache",
+    "llm",
+    "cli"
   ],
   "license": "MIT",
+  "author": "Saolence (https://github.com/Saolence)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Saolence/pi-dsh-optimizer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Saolence/pi-dsh-optimizer/issues"
+  },
+  "homepage": "https://github.com/Saolence/pi-dsh-optimizer#readme",
   "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "files": [
-    "index.ts",
-    "router-core.ts",
+    "src",
+    "!src/**/*.bak*",
     "README.md",
     "README.zh-CN.md",
+    "LICENSE",
     "tsconfig.json"
   ],
   "pi": {
     "extensions": [
-      "./index.ts"
+      "./src/index.ts"
     ]
   },
   "peerDependencies": {
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
     "typebox": "*"
   },
+  "devDependencies": {
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*",
+    "typescript": "*"
+  },
   "scripts": {
-    "test": "node --test tests.mjs",
+    "test": "node --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"
   }
 }
